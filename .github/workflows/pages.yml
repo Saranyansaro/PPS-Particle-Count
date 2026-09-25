@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 22
       - name: Calculation tests
-        run: node --test tests/
+        run: node --test tests/calc.test.js
       - uses: actions/setup-python@v7
         with:
           python-version: "3.9"

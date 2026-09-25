@@ -49,7 +49,7 @@ The full manual is in `static/manual.html` (the **Help** link in the app).
 | `static/sw.js`, `static/manifest.webmanifest`, `static/icons/` | Offline support and home-screen app |
 | `static/lib/` | PDF libraries (html2canvas 1.4.1, jsPDF), bundled so it works offline |
 | `server.py` | Local server and SQLite database (Python standard library only) |
-| `tests/` | `node --test tests/` and `python -m unittest discover -s tests` |
+| `tests/` | `node --test tests/calc.test.js` and `python -m unittest discover -s tests` |
 | `tools/make_icons.py` | Rebuilds the app icons from `static/logo.png` |
 | `.github/workflows/pages.yml` | Runs the tests, then publishes `static/` to GitHub Pages on every push to `main` |
 

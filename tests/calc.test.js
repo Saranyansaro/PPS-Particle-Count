@@ -1,4 +1,4 @@
-// Run with:  node --test tests/
+// Run with:  node --test tests/calc.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const C = require('../static/js/calc.js');
