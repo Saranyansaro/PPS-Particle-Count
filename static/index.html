@@ -4,13 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PPS Particle Count Report</title>
-<link rel="icon" href="/logo.png">
+<meta name="description" content="Prime Power Systems particle count report (PPS-F-05): enter counter results, get the PDF, keep a searchable records list.">
+<meta name="theme-color" content="#1f1f21">
+<meta name="color-scheme" content="light dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PPS Report">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
 :root{
   --bg:#e7e9ec; --surface:#ffffff; --surface-2:#f3f4f6; --text:#1c1d1f; --muted:#62666d;
-  --line:#d3d6db; --amber:#f0960f; --amber-deep:#c86f00; --ink:#1f1f21; --ok:#1f7a45; --bad:#b3261e;
-  --focus:#1a5fd6;
-  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  --line:#d3d6db; --amber:#f0960f; --amber-deep:#b35f00; --ink:#1f1f21; --ok:#1f7a45; --bad:#b3261e;
+  --focus:#1a5fd6; --actions-h:0px;
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+  --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
+  box-sizing:border-box;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -22,97 +34,104 @@
   --bg:#15171a; --surface:#202328; --surface-2:#2a2e34; --text:#eceef1; --muted:#a4a9b1;
   --line:#3a3f46; --amber:#f5a524; --amber-deep:#f5a524; --ink:#0e0f11; --ok:#5fcf8c; --bad:#ff8a80; --focus:#7aa7ff;
 }
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--text);font-family:Arial,"Helvetica Neue",Helvetica,"Liberation Sans",sans-serif;font-size:15px;line-height:1.45;display:flex;flex-direction:column}
+html{background:var(--ink);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font-family:Arial,"Helvetica Neue",Helvetica,"Liberation Sans",sans-serif;font-size:15px;line-height:1.45;display:flex;flex-direction:column;overflow:hidden;padding-bottom:var(--actions-h)}
+[hidden]{display:none !important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* App bar */
-.bar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--ink);color:#fff;flex-wrap:wrap}
-.bar img{height:34px;background:#fff;border-radius:4px;padding:2px 4px}
-.bar h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.01em}
-.bar h1 small{display:block;font-weight:400;font-size:12px;color:#c9ccd1}
+.bar{display:flex;align-items:center;gap:12px;padding:10px calc(16px + var(--sar)) 10px calc(16px + var(--sal));padding-top:calc(10px + var(--sat));background:var(--ink);color:#fff;flex-wrap:wrap;flex:none}
+.bar .logo{height:34px;width:auto;background:#fff;border-radius:4px;padding:2px 4px}
+.bar h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.01em;min-width:0}
+.bar h1 small{display:block;font-weight:400;font-size:12px;color:#c9ccd1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar .sp{flex:1}
-.btn{font:inherit;font-size:14px;border-radius:6px;padding:9px 14px;border:1px solid transparent;cursor:pointer;font-weight:600}
-.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tab:focus-visible,label.chk:focus-within{outline:2px solid var(--focus);outline-offset:2px}
+.actions{display:flex;gap:12px;align-items:center}
+.btn{font:inherit;font-size:14px;border-radius:6px;padding:9px 14px;border:1px solid transparent;cursor:pointer;font-weight:600;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tab:focus-visible,.chip:focus-visible,.rowbtn:focus-visible,label.chk:focus-within{outline:2px solid var(--focus);outline-offset:2px}
 .btn-primary{background:var(--amber);color:#1a1200}
 .btn-primary:hover{filter:brightness(1.05)}
 .btn-ghost{background:transparent;color:#fff;border-color:#55595f}
 .btn-ghost.warn{border-color:#ff8a80;color:#ffb4ab}
 .btn[disabled]{opacity:.6;cursor:wait}
-.tabs{display:none;gap:4px;background:#2c2e32;border-radius:7px;padding:3px}
-.tab{font:inherit;font-size:14px;border:0;background:transparent;color:#d9dbdf;padding:6px 14px;border-radius:5px;cursor:pointer}
-.tab[aria-selected="true"]{background:#fff;color:#111}
+.btn b{background:var(--amber);color:#1a1200;border-radius:10px;padding:0 7px;margin-left:4px;font-size:12px}
+.btn b:empty{display:none}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff8a80;margin-left:6px;vertical-align:middle}
+.tabs{display:none;gap:4px;background:#2c2e32;border-radius:8px;padding:3px}
+.tab{font:inherit;font-size:14px;border:0;background:transparent;color:#d9dbdf;padding:7px 14px;border-radius:6px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.tab[aria-selected="true"]{background:#fff;color:#111;font-weight:700}
+.tab b{font-weight:700;margin-left:4px;color:inherit;opacity:.75}
+.help{color:#c9ccd1;font-size:13px;margin-left:4px;padding:6px 2px}
+.help:hover{color:#fff}
+.save{font-size:12.5px;color:#9fd9b3;min-width:70px;text-align:right;white-space:nowrap}
+.save.err{color:#ffb4ab}
 
-.status{font-size:13px;color:#c9ccd1;min-height:1em}
+/* Banners */
+.banner{padding:10px calc(16px + var(--sar)) 10px calc(16px + var(--sal));font-size:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;flex:none}
+.banner.down{background:#b3261e;color:#fff}
+.banner.upd{background:#1a5fd6;color:#fff}
+.banner.conf{background:#9a5b00;color:#fff}
+.banner .btn{padding:6px 12px;font-size:13px}
+.banner .btn-light{background:#fff;color:#111}
 
 /* Layout */
 main{flex:1;display:grid;grid-template-columns:minmax(340px,440px) 1fr;grid-template-rows:minmax(0,1fr);min-height:0;overflow:hidden}
-#form{overflow:auto;padding:16px 16px 40px;border-right:1px solid var(--line);background:var(--bg)}
-#previewPane{overflow:auto;padding:20px;display:flex;justify-content:center;align-items:flex-start}
-@media (max-width: 900px){
-  main{grid-template-columns:1fr}
-  #form{border-right:0}
-  .tabs{display:flex}
-  main[data-view="form"] #previewPane{display:none}
-  main[data-view="preview"] #form{display:none}
-  #previewPane{padding:12px}
-  .bar{gap:8px;padding:8px 12px}
-  .bar .sp{display:none}
-  .bar h1{flex:1 1 220px}
-  .tabs{margin-right:auto}
-  .btn{padding:7px 10px;font-size:13px}
-  .status{order:10;width:100%}
-}
-.status:empty{display:none}
+#form{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px 16px 40px;padding-left:calc(16px + var(--sal));border-right:1px solid var(--line);background:var(--bg)}
+#previewPane{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:20px;display:flex;justify-content:center;align-items:flex-start}
 
 /* Form */
-fieldset{border:1px solid var(--line);background:var(--surface);border-radius:8px;margin:0 0 14px;padding:12px 14px 14px}
+fieldset{border:1px solid var(--line);background:var(--surface);border-radius:8px;margin:0 0 14px;padding:12px 14px 14px;min-width:0}
 legend{font-weight:700;font-size:14px;padding:0 6px;color:var(--text)}
 legend .n{color:var(--amber-deep);margin-right:6px}
 .hint{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
 .full{grid-column:1/-1}
-label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
-input[type=text],input[type=search],input[type=date],input[type=number],input:not([type]),select,textarea{
-  font:inherit;font-size:15px;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted);min-width:0}
+input[type=text],input[type=search],input[type=date],input[type=number],input[type=tel],input[type=email],input:not([type]),select,textarea{
+  font:inherit;font-size:15px;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0;margin:0}
+input[type=date]{min-height:40px;-webkit-appearance:none;appearance:none;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left;min-height:1.45em}
+select{-webkit-appearance:none;appearance:none;padding-right:28px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 15px) 55%,calc(100% - 10px) 55%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
 textarea{min-height:120px;resize:vertical;line-height:1.45}
+.fwarn{font-size:12px;color:var(--bad)}
+.fwarn:empty{display:none}
 .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-bottom:12px}
-.seg label{position:relative;flex:1;text-align:center;padding:8px 6px;font-size:13.5px;cursor:pointer;background:var(--surface-2)}
+.seg label{position:relative;flex:1;text-align:center;padding:9px 6px;font-size:13.5px;cursor:pointer;background:var(--surface-2)}
 .seg input{position:absolute;opacity:0;pointer-events:none}
-.seg label:has(input:checked){background:var(--amber);color:#1a1200;font-weight:700}
+.seg label:has(input:checked),.seg label.on{background:var(--amber);color:#1a1200;font-weight:700}
 .seg label:focus-within{outline:2px solid var(--focus);outline-offset:-2px}
 
 table.in{width:100%;border-collapse:collapse;font-size:13.5px}
 table.in th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;padding:0 4px 6px}
 table.in td{padding:3px 4px;vertical-align:middle}
-table.in td.sz{white-space:nowrap;font-weight:600;width:62px}
+table.in td.sz{white-space:nowrap;font-weight:600;width:52px}
+table.in td.cd{width:44px}
 table.in input{padding:7px 8px;font-variant-numeric:tabular-nums}
 .code{display:inline-block;min-width:34px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums;border-radius:5px;padding:5px 4px;background:var(--surface-2);color:var(--muted)}
 .code.has{color:var(--text)}
 .code.above{background:#fde3e1;color:#8e1b14}
 .code.within{background:#dcf2e4;color:#15603a}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .code.above{background:#4a2220;color:#ffb4ab}:root:not([data-theme="light"]) .code.within{background:#1d3b2a;color:#9be2b6}}
+:root[data-theme="dark"] .code.above{background:#4a2220;color:#ffb4ab}
+:root[data-theme="dark"] .code.within{background:#1d3b2a;color:#9be2b6}
 .col-after{display:none}
 .mode-after .col-after{display:table-cell}
 .warn-box{font-size:12.5px;color:var(--bad);margin-top:8px}
 .warn-box:empty{display:none}
-.recul{list-style:none;margin:12px 0 0;padding:0}
-.recul li{display:flex;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:8px 0;font-size:13.5px}
-.recul li b{display:block;font-size:14px}
-.recul li span{color:var(--muted);font-size:12.5px}
-.recul li .cur{color:var(--amber-deep);font-weight:700}
+.warn-box p{margin:4px 0}
 
-label.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;padding:5px 0;cursor:pointer;border-radius:4px}
+label.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;padding:6px 0;cursor:pointer;border-radius:4px}
 label.chk input{width:18px;height:18px;margin:1px 0 0;accent-color:var(--amber-deep);flex:none}
 .row-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.linkbtn{font:inherit;font-size:13px;background:none;border:0;color:var(--amber-deep);text-decoration:underline;cursor:pointer;padding:4px 0}
+.linkbtn{font:inherit;font-size:13.5px;background:none;border:0;color:var(--amber-deep);text-decoration:underline;cursor:pointer;padding:6px 0;touch-action:manipulation}
 .linkbtn:focus-visible{outline:2px solid var(--focus)}
-details.more summary{cursor:pointer;font-size:13.5px;color:var(--amber-deep);padding:4px 0}
+.linkbtn.arm{color:var(--bad);font-weight:700}
+details.more summary{cursor:pointer;font-size:13.5px;color:var(--amber-deep);padding:6px 0}
 
 /* ============ REPORT PAGE (always paper white) ============ */
-.page-wrap{position:relative}
-.page{width:794px;background:#fff;color:#1f1f21;font-family:Arial,"Helvetica Neue",Helvetica,"Liberation Sans",sans-serif;font-size:11px;line-height:1.35;padding:22px 40px 16px;box-shadow:0 1px 3px rgba(0,0,0,.18),0 8px 28px rgba(0,0,0,.12);transform-origin:top left}
+.page-wrap{position:relative;flex:none}
+.page{width:794px;background:#fff;color:#1f1f21;font-family:Arial,"Helvetica Neue",Helvetica,"Liberation Sans",sans-serif;font-size:11px;line-height:1.35;padding:22px 40px 16px;box-shadow:0 1px 3px rgba(0,0,0,.18),0 8px 28px rgba(0,0,0,.12);transform-origin:top left;-webkit-text-size-adjust:none;text-size-adjust:none}
 .r-head{display:flex;align-items:flex-start;gap:16px}
 .r-head img{width:78px;height:auto}
 .r-head .co{flex:1;text-align:right}
@@ -125,14 +144,14 @@ details.more summary{cursor:pointer;font-size:13.5px;color:var(--amber-deep);pad
 .r-title .sub{color:#f3a21c;font-size:11px;margin-top:2px}
 .r-title .form{font-size:10.5px;color:#ddd}
 .r-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:8px 0 6px}
-.r-meta div{background:#f0f1f3;padding:5px 10px;min-height:36px}
+.r-meta div{background:#f0f1f3;padding:5px 10px;min-height:36px;min-width:0}
 .r-meta b{display:block;font-size:9.5px;color:#555;letter-spacing:.03em}
-.r-meta span{display:block;font-size:12px;font-weight:700;margin-top:3px;word-break:break-word}
+.r-meta span{display:block;font-size:12px;font-weight:700;margin-top:3px;overflow-wrap:anywhere}
 .r-sec{font-size:12px;font-weight:700;margin:9px 0 4px;padding-bottom:3px;border-bottom:2px solid #ec8b00}
 .r-sec em{font-style:normal;color:#ec8b00;margin-right:6px}
-.r-kv{display:grid;grid-template-columns:120px 1fr 110px 1fr;gap:1px 10px;align-items:end}
+.r-kv{display:grid;grid-template-columns:120px minmax(0,1fr) 110px minmax(0,1fr);gap:1px 10px;align-items:end}
 .r-kv .k{color:#555;font-size:10.5px;padding:2px 0}
-.r-kv .v{border-bottom:1px dotted #9a9a9a;padding:2px 2px;font-weight:600;min-height:15px;word-break:break-word}
+.r-kv .v{border-bottom:1px dotted #9a9a9a;padding:2px 2px;font-weight:600;min-height:15px;overflow-wrap:anywhere}
 .r-kv .span3{grid-column:2/-1}
 .r-line{font-size:10.5px;color:#333;margin-top:5px;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}
 .cb{display:inline-flex;align-items:center;gap:4px}
@@ -141,7 +160,7 @@ details.more summary{cursor:pointer;font-size:13.5px;color:var(--amber-deep);pad
 table.r-t{width:100%;border-collapse:collapse;font-size:10.8px;margin-top:4px}
 table.r-t th{background:#262626;color:#fff;font-weight:700;text-align:center;padding:4px 6px;border:1px solid #262626}
 table.r-t th:first-child{text-align:left}
-table.r-t td{border:1px solid #cfcfcf;padding:2px 7px;text-align:center;font-variant-numeric:tabular-nums;height:17px}
+table.r-t td{border:1px solid #cfcfcf;padding:2px 7px;text-align:center;font-variant-numeric:tabular-nums;height:17px;overflow-wrap:anywhere}
 table.r-t td:first-child{text-align:left}
 table.r-t td.dash{color:#aaa}
 table.r-t td.hi{font-weight:700}
@@ -161,120 +180,218 @@ table.r-t td.hi{font-weight:700}
 .r-recs{display:grid;grid-template-columns:auto auto auto;gap:4px 18px;font-size:10.8px;margin-top:4px;justify-content:start}
 .r-obs{border:1px solid #cfcfcf;margin-top:6px;padding:5px 10px;min-height:54px}
 .r-obs b{display:block;font-size:10px;color:#555;margin-bottom:3px;letter-spacing:.03em}
-.r-obs p{margin:0;white-space:pre-wrap;font-size:10.6px}
+.r-obs p{margin:0;white-space:pre-wrap;font-size:10.6px;overflow-wrap:anywhere}
 .r-notes{font-size:9.3px;color:#555;margin-top:5px}
 .r-sign{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:7px}
-.r-sign > div{background:#f0f1f3;padding:6px 12px}
+.r-sign > div{background:#f0f1f3;padding:6px 12px;min-width:0}
 .r-sign b{display:block;font-size:11px;margin-bottom:5px}
-.r-sign .sl{display:grid;grid-template-columns:80px 1fr;gap:6px;font-size:10.5px;color:#555;margin-top:4px}
-.r-sign .sl span:last-child{border-bottom:1px dotted #9a9a9a;min-height:15px;color:#1f1f21;font-weight:600}
+.r-sign .sl{display:grid;grid-template-columns:80px minmax(0,1fr);gap:6px;font-size:10.5px;color:#555;margin-top:4px}
+.r-sign .sl span:last-child{border-bottom:1px dotted #9a9a9a;min-height:15px;color:#1f1f21;font-weight:600;overflow-wrap:anywhere}
 .r-sign .sl.sig span:last-child{min-height:24px}
-.r-foot{margin-top:9px;text-align:center;font-size:9.5px;color:#555;border-bottom:4px solid;border-image:linear-gradient(90deg,#ec8b00 0 55%,#f7c21b 55% 100%) 1;padding-bottom:5px}
+.r-foot{margin-top:9px;text-align:center;font-size:9.5px;color:#555;border-bottom:4px solid #ec8b00;padding-bottom:5px;position:relative}
+.r-foot::after{content:"";position:absolute;left:55%;right:0;bottom:-4px;height:4px;background:#f7c21b}
 
-
-.help{color:#c9ccd1;font-size:13px;margin-left:4px}
-.help:hover{color:#fff}
-.save{font-size:12.5px;color:#9fd9b3;min-width:70px;text-align:right}
-.save.err{color:#ffb4ab}
-.btn b{background:var(--amber);color:#1a1200;border-radius:10px;padding:0 7px;margin-left:4px;font-size:12px}
+/* ============ Records ============ */
 .btn-sec{background:var(--surface);color:var(--text);border-color:var(--line);text-decoration:none;display:inline-block}
-.down{background:#b3261e;color:#fff;padding:10px 16px;font-size:14px}
-#recView{flex:1;overflow:auto;padding:18px 20px 40px;background:var(--bg)}
-#recView[hidden]{display:none}
+#recView{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:18px calc(20px + var(--sar)) 40px calc(20px + var(--sal));background:var(--bg);min-height:0}
 .rv-top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
 .rv-top h2{margin:0;font-size:20px}
 .rv-top h2 span{color:var(--muted);font-weight:400;font-size:15px}
+.rv-where{font-size:13px;color:var(--muted);margin:4px 0 0}
 .rv-actions{display:flex;gap:8px;flex-wrap:wrap}
+.nag{background:#fff4e0;color:#5b3a00;border:1px solid #f0c27a;border-radius:8px;padding:10px 14px;margin:12px 0 0;font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .nag{background:#3a2c12;color:#ffd9a0;border-color:#7a5a20}}
+:root[data-theme="dark"] .nag{background:#3a2c12;color:#ffd9a0;border-color:#7a5a20}
 .rv-tools{display:flex;gap:10px;margin:14px 0 10px;flex-wrap:wrap}
 .rv-tools input{flex:1 1 280px}
 .rv-tools select{flex:0 0 230px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.chip{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:16px;padding:5px 12px;cursor:pointer}
-.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:16px;padding:6px 12px;cursor:pointer;touch-action:manipulation}
+.chip[aria-pressed="true"]{background:var(--amber);color:#1a1200;border-color:var(--amber);font-weight:700}
 .chip span{color:var(--muted);margin-left:4px}
-.chip[aria-pressed="true"] span{color:#c9ccd1}
-.rv-table{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.chip[aria-pressed="true"] span{color:#4a3300}
+.rv-table{overflow:auto;max-height:calc(100vh - 250px);background:var(--surface);border:1px solid var(--line);border-radius:8px}
 table.rt{width:100%;border-collapse:collapse;font-size:14px;min-width:980px}
 table.rt th{text-align:left;font-size:12.5px;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2);position:sticky;top:0}
 table.rt th[data-s]{cursor:pointer}
-table.rt th[data-s]:hover{color:var(--text)}
-table.rt th.on{color:var(--text)}
-table.rt td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+table.rt th[data-s]:hover,table.rt th.on{color:var(--text)}
+table.rt th.on::after{content:" ▾"}
+table.rt th.on.asc::after{content:" ▴"}
+table.rt td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
 table.rt tr:last-child td{border-bottom:0}
 table.rt tbody tr{cursor:pointer}
 table.rt tbody tr:hover{background:var(--surface-2)}
-table.rt td small{display:block;color:var(--muted);font-size:12.5px}
+table.rt td small,.card small{display:block;color:var(--muted);font-size:12.5px}
+.cards{display:none;list-style:none;margin:0;padding:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer}
+.card .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card .top b{font-size:16px;overflow-wrap:anywhere}
+.card .meta{font-size:13px;color:var(--muted);margin-top:2px}
+.card .mid{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:13.5px;align-items:center}
+.card .foot{display:flex;justify-content:space-between;gap:10px;margin-top:10px;align-items:center}
 .pill{display:inline-block;font-size:12px;font-weight:700;border-radius:4px;padding:2px 7px;white-space:nowrap}
 .pill.above{background:#fde3e1;color:#8e1b14}
 .pill.within{background:#dcf2e4;color:#15603a}
 .st{font-size:12.5px;font-weight:700;white-space:nowrap}
 .st-Won{color:var(--ok)}.st-Lost{color:var(--bad)}
 .overdue{color:var(--bad);font-weight:700}
-.rowbtn{font:inherit;font-size:13px;background:none;border:1px solid var(--line);color:var(--text);border-radius:5px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+.rowbtn{font:inherit;font-size:13px;background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:6px 12px;cursor:pointer;white-space:nowrap;touch-action:manipulation}
 .rowbtn.del{color:var(--bad)}
 .rowbtn.arm{background:var(--bad);color:#fff;border-color:var(--bad)}
 .rv-empty{color:var(--muted);padding:24px 4px}
 body.show-rec main{display:none}
 
+/* Toast messages */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + var(--actions-h));z-index:35;background:#2c2e32;color:#fff;border-radius:8px;padding:10px 16px;font-size:14px;max-width:min(560px,calc(100% - 24px));box-shadow:0 6px 24px rgba(0,0,0,.3);text-align:center}
+.toast:empty{display:none}
+.toast .btn{margin-left:10px;padding:5px 12px;font-size:13px}
+/* Report preview zoom (phones) */
+.pv-tools{display:none}
+.booting main,.booting .actions,.booting .tabs{pointer-events:none;opacity:.55}
+
+/* Share sheet fallback (iPhone asks for a fresh tap before sharing a file) */
+.sheet{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + var(--actions-h) + var(--sab));z-index:40;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.3);padding:14px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:calc(100% - 24px);width:420px}
+.sheet p{margin:0;flex:1 1 180px;font-size:14px}
+.sheet .x{background:none;border:0;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px}
+
+/* ============ Phone / narrow screens ============ */
+@media (max-width: 900px){
+  :root{--actions-h:calc(62px + var(--sab))}
+  main{grid-template-columns:1fr}
+  #form{border-right:0;padding:12px calc(12px + var(--sar)) 28px calc(12px + var(--sal))}
+  main[data-view="form"] #previewPane{display:none}
+  main[data-view="preview"] #form{display:none}
+  #previewPane{padding:12px}
+  .bar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px 10px;padding:8px calc(12px + var(--sar)) 8px calc(12px + var(--sal));padding-top:calc(8px + var(--sat))}
+  .bar .logo{height:30px;grid-row:1;grid-column:1}
+  .bar h1{grid-row:1;grid-column:2;font-size:16px}
+  .bar .save{grid-row:1;grid-column:3;min-width:0}
+  .bar .help{grid-row:1;grid-column:4}
+  .bar .sp,#recBtn{display:none}
+  .tabs{display:flex;grid-row:2;grid-column:1/-1}
+  .tab{flex:1;min-height:40px}
+  /* the page itself scrolls on phones, so tapping the status bar jumps to the top */
+  html,body{height:auto;min-height:100%}
+  body{display:block;overflow:visible}
+  .bar{position:sticky;top:0;z-index:25}
+  main{display:block;overflow:visible}
+  #form,#previewPane,#recView{overflow:visible}
+  #previewPane{flex-direction:column;align-items:center}
+  .pv-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;margin-bottom:10px;font-size:13px;color:var(--muted)}
+  #previewPane.zoomed{overflow-x:auto;align-items:flex-start}
+  .actions{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--ink);padding:9px calc(12px + var(--sar)) calc(9px + var(--sab)) calc(12px + var(--sal));gap:10px;border-top:1px solid #33363b}
+  .actions .btn{flex:1;padding:11px 10px;font-size:15px}
+  #recView{padding:14px calc(12px + var(--sar)) 28px calc(12px + var(--sal))}
+  .rv-tools select{flex:1 1 200px}
+  .rv-table{max-height:none}
+  .help{padding:10px 6px}
+}
+@media (max-width: 700px){
+  .rv-table{display:none}
+  .cards{display:block}
+  .rv-actions .btn{flex:1 1 auto}
+}
+/* Stop iPhone zooming into fields, and give fingers room */
+@media (max-width: 900px), (pointer: coarse){
+  input[type=text],input[type=search],input[type=date],input[type=number],input[type=tel],input[type=email],input:not([type]),select,textarea{font-size:16px}
+  .chip,.rowbtn{min-height:40px}
+  .linkbtn,details.more summary{min-height:40px;display:inline-flex;align-items:center}
+  .rowbtn + .rowbtn{margin-left:8px}
+  label.chk{padding:8px 0}
+  label.chk input{width:22px;height:22px}
+}
+@media (max-width: 380px){
+  table.in td.sz{width:40px;font-size:12.5px}
+  table.in td.cd{width:38px}
+  .code{min-width:30px}
+}
+
 @media print{
   @page{size:A4;margin:0}
-  body{background:#fff;display:block}
-  .bar,#form{display:none !important}
-  main{display:block}
+  html,body{background:#fff;display:block;height:auto;overflow:visible;padding:0}
+  .bar,#form,.banner,.sheet,.toast,#recView,.actions{display:none !important}
+  body.show-rec main{display:block !important}
+  main{display:block;overflow:visible}
   #previewPane{display:block !important;padding:0;overflow:visible}
   .page-wrap{height:auto !important;width:auto !important}
   .page{transform:none !important;box-shadow:none}
 }
-@media (prefers-reduced-motion: reduce){*{transition:none !important}}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
 </style>
 </head>
-<body>
+<body class="booting">
 <header class="bar">
-  <img id="barLogo" src="/logo.png" alt="Prime Power Systems">
+  <img class="logo" src="logo.png" alt="Prime Power Systems" width="38" height="34">
   <h1>Particle count report<small id="barNo">—</small></h1>
-  <a class="help" href="/manual.html" target="_blank" rel="noopener">Help</a>
-  <div class="tabs" role="tablist" aria-label="View">
-    <button class="tab" role="tab" aria-selected="true" data-view="form">Enter</button>
-    <button class="tab" role="tab" aria-selected="false" data-view="preview">Report</button>
-  </div>
+  <a class="help" href="manual.html" target="_blank" rel="noopener">Help</a>
   <span class="sp"></span>
-  <span class="status" id="status" role="status" aria-live="polite"></span>
   <span class="save" id="saveState" aria-live="polite"></span>
-  <button class="btn btn-ghost" id="recBtn" type="button">Records <b id="recN"></b></button>
-  <button class="btn btn-ghost" id="newBtn" type="button">New report</button>
-  <button class="btn btn-primary" id="pdfBtn" type="button">Save PDF</button>
+  <div class="tabs" role="tablist" aria-label="View">
+    <button class="tab" role="tab" aria-selected="true" data-view="form" type="button">Enter</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="preview" type="button">Report</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="records" type="button">Records<b id="recN2"></b></button>
+  </div>
+  <div class="actions">
+    <button class="btn btn-ghost" id="recBtn" type="button">Records <b id="recN"></b></button>
+    <button class="btn btn-ghost" id="newBtn" type="button">New report</button>
+    <button class="btn btn-primary" id="pdfBtn" type="button">Save PDF</button>
+  </div>
 </header>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<div class="down" id="downBar" hidden>Can't reach the app server, so changes are not being saved. Start it again (double-click <b>start.bat</b> or run <b>python server.py</b>), then reload this page.</div>
+<div class="banner down" id="downBar" hidden>
+  <span id="downTxt">Can't reach the app server on the laptop, so changes are kept on this screen only. Start it again (double-click <b>start.bat</b> or run <b>python server.py</b>). Your typing is kept and saves by itself when the server is back.</span>
+  <button class="btn btn-light" id="retryBtn" type="button">Try again</button>
+</div>
+<div class="banner conf" id="confBar" hidden>
+  <span id="confTxt"></span>
+  <button class="btn btn-light" id="confTheirs" type="button">Show the newer copy</button>
+  <button class="btn btn-light" id="confMine" type="button">Keep my version</button>
+</div>
+<div class="banner upd" id="updBar" hidden>
+  <span>A new version of the app is ready.</span>
+  <button class="btn btn-light" id="updBtn" type="button">Update now</button>
+</div>
 
 <section id="recView" hidden aria-label="Saved records">
   <div class="rv-top">
-    <h2>Saved records <span id="rvTotal"></span></h2>
+    <div>
+      <h2>Saved records <span id="rvTotal"></span></h2>
+      <p class="rv-where" id="rvWhere"></p>
+    </div>
     <div class="rv-actions">
       <button class="btn btn-sec" id="csvBtn" type="button">Export to Excel (CSV)</button>
-      <a class="btn btn-sec" href="/api/backup" id="bkBtn">Download backup</a>
+      <button class="btn btn-sec" id="jsonBtn" type="button">Backup file</button>
+      <button class="btn btn-sec" id="importBtn" type="button">Restore / import</button>
+      <a class="btn btn-sec" href="api/backup" id="bkBtn" hidden>Database copy (.db)</a>
       <button class="btn btn-primary" id="rvClose" type="button">Back to report</button>
     </div>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
   </div>
+  <div class="nag" id="bkNag" hidden><span id="bkNagTxt"></span><button class="btn btn-primary" id="bkNagBtn" type="button">Back up now</button></div>
   <div class="rv-tools">
-    <input id="rvSearch" type="search" placeholder="Search client, report no., equipment, contact…" aria-label="Search records">
+    <input id="rvSearch" type="search" placeholder="Search client, report no., equipment, contact…" aria-label="Search records" autocomplete="off">
     <select id="rvSort" aria-label="Sort by">
       <option value="date-desc">Newest test first</option>
       <option value="date-asc">Oldest test first</option>
       <option value="client-asc">Client A–Z</option>
+      <option value="client-desc">Client Z–A</option>
       <option value="next-asc">Next step date (soonest)</option>
+      <option value="next-desc">Next step date (latest)</option>
       <option value="status">Status</option>
       <option value="no-desc">Report no. (latest)</option>
+      <option value="no-asc">Report no. (oldest)</option>
     </select>
   </div>
   <div class="chips" id="rvChips" role="group" aria-label="Filter by status"></div>
   <div class="rv-table"><table class="rt">
     <thead><tr>
       <th data-s="no">Report no.</th><th data-s="date">Test date</th><th data-s="client">Client</th><th>Equipment</th>
-      <th>ISO / NAS</th><th>Result</th><th data-s="status">Status</th><th data-s="next">Next step</th><th></th>
+      <th>ISO / NAS</th><th>Result</th><th data-s="status">Status</th><th data-s="next">Next step</th><th><span class="sr">Actions</span></th>
     </tr></thead>
     <tbody id="rvBody"></tbody>
   </table></div>
+  <ul class="cards" id="rvCards"></ul>
   <p class="rv-empty" id="rvEmpty" hidden></p>
 </section>
 
@@ -284,21 +401,21 @@ body.show-rec main{display:none}
   <fieldset>
     <legend>Report</legend>
     <div class="grid2">
-      <label class="f full">Report no.<input data-k="reportNo"></label>
+      <label class="f full">Report no.<input data-k="reportNo" autocorrect="off" autocapitalize="characters" spellcheck="false" autocomplete="off"><span class="fwarn" id="noWarn"></span></label>
       <label class="f">Sample date<input type="date" data-k="sampleDate"></label>
       <label class="f">Test date<input type="date" data-k="testDate"></label>
-      <label class="f full">Tested by<input data-k="testedBy" data-keep></label>
+      <label class="f full">Tested by<input data-k="testedBy" data-keep autocomplete="name"></label>
     </div>
   </fieldset>
 
   <fieldset>
     <legend><span class="n">01</span>Client &amp; sample</legend>
     <div class="grid2">
-      <label class="f full">Client name<input data-k="client"></label>
-      <label class="f full">Address<input data-k="address"></label>
+      <label class="f full">Client name<input data-k="client" autocomplete="organization"></label>
+      <label class="f full">Address<input data-k="address" autocomplete="off"></label>
       <label class="f full">Equipment / system<input data-k="equipment" placeholder="e.g. 250T press power pack"></label>
-      <label class="f">Sample ID<input data-k="sampleId"></label>
-      <label class="f">Oil grade / brand<input data-k="oilGrade" placeholder="e.g. HLP 68"></label>
+      <label class="f">Sample ID<input data-k="sampleId" autocorrect="off" autocapitalize="characters" spellcheck="false" autocomplete="off"></label>
+      <label class="f">Oil grade / brand<input data-k="oilGrade" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. HLP 68"></label>
       <label class="f">Oil quantity (L)<input data-k="oilQty" inputmode="decimal"></label>
       <label class="f">Hours in service<input data-k="hours" inputmode="decimal"></label>
       <label class="f full">Sampling point<input data-k="samplingPoint" placeholder="e.g. return line before filter"></label>
@@ -309,11 +426,11 @@ body.show-rec main{display:none}
     <legend><span class="n">02</span>Instrument &amp; test conditions</legend>
     <p class="hint">Counter details are remembered for the next report.</p>
     <div class="grid2">
-      <label class="f">Particle counter<input data-k="counter" data-keep></label>
-      <label class="f">Sr. no.<input data-k="counterSr" data-keep></label>
+      <label class="f">Particle counter<input data-k="counter" autocorrect="off" spellcheck="false" data-keep></label>
+      <label class="f">Sr. no.<input data-k="counterSr" autocorrect="off" autocapitalize="characters" spellcheck="false" data-keep autocomplete="off"></label>
       <label class="f">Last calibration<input type="date" data-k="calDate" data-keep></label>
       <label class="f">Sample condition<select data-k="condition"><option value="clear">Clear</option><option value="hazy">Hazy</option><option value="water">Free water</option></select></label>
-      <label class="chk" style="align-self:end"><input type="checkbox" data-k="iso11171" data-keep>ISO 11171 calibration</label>
+      <label class="chk full"><input type="checkbox" data-k="iso11171" data-keep>ISO 11171 calibration</label>
     </div>
   </fieldset>
 
@@ -326,37 +443,37 @@ body.show-rec main{display:none}
     <p class="hint">Free test: enter only the counts you just measured. After a PPS filtration job: also enter the counts after filtering, so the report shows the improvement. ISO codes are calculated from the counts and should match the printout.</p>
     <div id="resWrap">
     <table class="in">
-      <thead><tr><th>Size</th><th>Before /ml</th><th>Code</th><th class="col-after">After /ml</th><th class="col-after">Code</th></tr></thead>
+      <thead><tr><th>Size µm(c)</th><th>Before /ml</th><th>Code</th><th class="col-after">After /ml</th><th class="col-after">Code</th></tr></thead>
       <tbody id="countRows"></tbody>
     </table>
     </div>
     <div class="grid2" style="margin-top:12px">
-      <label class="f">NAS 1638 class, before<input data-k="nasB" inputmode="numeric"></label>
-      <label class="f col-after-f">NAS 1638 class, after<input data-k="nasA" inputmode="numeric"></label>
+      <label class="f">NAS 1638 class, before<input data-k="nasB" autocorrect="off" spellcheck="false" inputmode="numeric"></label>
+      <label class="f col-after-f">NAS 1638 class, after<input data-k="nasA" autocorrect="off" spellcheck="false" inputmode="numeric"></label>
     </div>
     <details class="more" style="margin-top:8px">
       <summary>SAE AS4059 and water saturation (optional)</summary>
       <div class="grid2" style="margin-top:8px">
-        <label class="f">AS4059 class, before<input data-k="asB"></label>
-        <label class="f col-after-f">AS4059 class, after<input data-k="asA"></label>
-        <label class="f">AS4059 target<input data-k="asT"></label>
+        <label class="f">AS4059 class, before<input data-k="asB" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. 7B"></label>
+        <label class="f col-after-f">AS4059 class, after<input data-k="asA" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. 5B"></label>
+        <label class="f">AS4059 target<input data-k="asT" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. 7B-F"></label>
         <span></span>
         <label class="f">Water sat. %RH, before<input data-k="rhB" inputmode="decimal"></label>
         <label class="f col-after-f">Water sat. %RH, after<input data-k="rhA" inputmode="decimal"></label>
         <label class="f">Water sat. target %RH<input data-k="rhT" inputmode="decimal"></label>
       </div>
     </details>
-    <div class="warn-box" id="warnBox"></div>
+    <div class="warn-box" id="warnBox" role="alert"></div>
   </fieldset>
 
   <fieldset>
     <legend><span class="n">04</span>Target cleanliness</legend>
     <div class="grid2">
       <label class="f full">Critical component<select data-k="component" id="compSel"></select></label>
-      <label class="f">Target ≥4 code<input data-k="t4" inputmode="numeric"></label>
-      <label class="f">Target ≥6 code<input data-k="t6" inputmode="numeric"></label>
-      <label class="f">Target ≥14 code<input data-k="t14" inputmode="numeric"></label>
-      <label class="f">Target NAS class<input data-k="tNas" inputmode="numeric"></label>
+      <label class="f">Target ≥4 code<input data-k="t4" autocorrect="off" inputmode="numeric"></label>
+      <label class="f">Target ≥6 code<input data-k="t6" autocorrect="off" inputmode="numeric"></label>
+      <label class="f">Target ≥14 code<input data-k="t14" autocorrect="off" inputmode="numeric"></label>
+      <label class="f">Target NAS class<input data-k="tNas" autocorrect="off" inputmode="numeric"></label>
     </div>
     <p class="hint" style="margin-top:8px">Picking a component fills the typical target. If the OEM manual gives a figure, type it over.</p>
   </fieldset>
@@ -368,17 +485,18 @@ body.show-rec main{display:none}
     <button type="button" class="linkbtn" id="recReset" hidden>Use suggested recommendation</button>
     <label class="f" style="margin-top:10px">Observations / impression
       <textarea data-k="obs" id="obsBox"></textarea></label>
-    <button type="button" class="linkbtn" id="draftBtn">Write observations from the results</button>
+    <div class="row-inline"><button type="button" class="linkbtn" id="draftBtn">Write observations from the results</button>
+      <button type="button" class="linkbtn" id="undoObs" hidden>Undo</button></div>
   </fieldset>
 
   <fieldset>
     <legend>Plant &amp; follow-up</legend>
     <p class="hint">For your records only. None of this prints on the client's report.</p>
     <div class="grid2">
-      <label class="f">Contact person<input data-k="contactName"></label>
+      <label class="f">Contact person<input data-k="contactName" autocomplete="off"></label>
       <label class="f">Designation<input data-k="designation" placeholder="e.g. Maintenance head"></label>
-      <label class="f">Mobile<input data-k="phone" inputmode="tel"></label>
-      <label class="f">Email<input data-k="email" inputmode="email"></label>
+      <label class="f">Mobile<input type="tel" data-k="phone" inputmode="tel" autocomplete="off"></label>
+      <label class="f">Email<input type="email" data-k="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
       <label class="f">Industry<input data-k="industry" placeholder="e.g. Injection moulding"></label>
       <label class="f">Lead source<select data-k="leadSource"><option value="">Choose</option><option>Lapsed PPS customer</option><option>Existing PPS customer</option><option>Sasikumar's list</option><option>New plant</option><option>Referral</option></select></label>
       <label class="f">Machine make / model<input data-k="machineMake"></label>
@@ -407,475 +525,21 @@ body.show-rec main{display:none}
 </section>
 
 <section id="previewPane" aria-label="Report preview">
+  <div class="pv-tools"><span>This is the PDF page.</span><button class="btn btn-sec" id="zoomBtn" type="button" aria-pressed="false">Zoom in</button></div>
   <div class="page-wrap" id="pageWrap"><div class="page" id="report"></div></div>
 </section>
 </main>
 
-<script src="/lib/html2canvas.min.js"></script>
-<script src="/lib/jspdf.umd.min.js"></script>
-<script>
-const LOGO="/logo.png";
-/* ---------- ISO 4406 table: upper limit per ml for each code ---------- */
-const ISO_UP=[0.01,0.02,0.04,0.08,0.16,0.32,0.64,1.3,2.5,5,10,20,40,80,160,320,640,1300,2500,5000,10000,20000,40000,80000,160000,320000,640000,1300000,2500000];
-function isoCode(v){
-  if(v===''||v==null) return null; const c=Number(v); if(!isFinite(c)||c<0) return null;
-  if(c<=0.01) return 0;
-  for(let n=1;n<=28;n++) if(c<=ISO_UP[n]) return n;
-  return 29; // shown as ">28"
-}
-const codeTxt=c=>c==null?'':(c>28?'>28':String(c));
+<div class="sheet" id="shareSheet" hidden role="dialog" aria-label="File ready">
+  <p id="shareTxt">Your PDF is ready.</p>
+  <button class="btn btn-primary" id="shareGo" type="button">Share / Save</button>
+  <button class="x" id="shareX" type="button" aria-label="Close">×</button>
+</div>
 
-const TARGETS={
-  servo:{label:'Servo valves',iso:[16,14,11],nas:5},
-  prop:{label:'Proportional valves',iso:[17,15,12],nas:6},
-  piston:{label:'Piston pumps',iso:[17,15,13],nas:7},
-  vane:{label:'Vane & gear pumps',iso:[18,16,14],nas:8},
-  brg:{label:'Rolling bearings',iso:[16,14,12],nas:6},
-  turbine:{label:'Turbines / journal brgs',iso:[17,15,12],nas:6},
-  oem:{label:'OEM specified',iso:null,nas:null}
-};
-const SIZES=[['c4','≥ 4 µm(c)','4'],['c6','≥ 6 µm(c)','6'],['c14','≥ 14 µm(c)','14'],['c21','≥ 21 µm(c)','21'],['c38','≥ 38 µm(c)','38'],['c70','≥ 70 µm(c)','70']];
-const RECS=[['fit','Oil fit for continued service'],['filt','Filtration recommended (PPS ELC)'],['moist','Moisture removal recommended (PPS LVDH)'],['change','Oil change recommended'],['source','Check contamination source (breathers / seals / ingress)'],['retest','Re-test after ___ days']];
-
-/* ---------- storage: local server + SQLite ---------- */
-const API={
-  async req(method,url,body){
-    const r=await fetch(url,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
-    if(!r.ok) throw new Error('HTTP '+r.status); return r.json();
-  },
-  list(){return this.req('GET','/api/records')},
-  save(rec){return this.req('PUT','/api/records/'+encodeURIComponent(rec.id),rec)},
-  del(id){return this.req('DELETE','/api/records/'+encodeURIComponent(id))},
-  settings(){return this.req('GET','/api/settings')},
-  saveSettings(s){return this.req('PUT','/api/settings',s)}
-};
-const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function fy(){const d=new Date();const y=d.getFullYear()%100;return d.getMonth()>=3?`${y}-${y+1}`:`${y-1}-${y}`}
-let RECORDS=[];      // cache of everything in the database
-let SETTINGS={};     // counter details, tested by, analysed by
-function nextReportNo(){
-  const pre=`PPS/PC/${fy()}/`; let max=0;
-  RECORDS.forEach(r=>{const no=String(r.reportNo||''); if(no.startsWith(pre)){const n=parseInt(no.slice(pre.length),10); if(n>max) max=n;}});
-  if(S&&S.reportNo&&String(S.reportNo).startsWith(pre)&&!RECORDS.some(r=>r.id===S.id)){const n=parseInt(S.reportNo.slice(pre.length),10); if(n>max) max=n;}
-  return pre+String(max+1).padStart(3,'0');
-}
-const KEEP_KEYS=['testedBy','counter','counterSr','calDate','iso11171','analysedBy'];
-const KEEP_DEFAULTS={testedBy:'',counter:'OPCOM2 (Ferrocare)',counterSr:'',calDate:'',iso11171:true,analysedBy:''};
-function newId(){return 'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
-function blankReport(){
-  return {reportNo:'',sampleDate:today(),testDate:today(),client:'',address:'',equipment:'',sampleId:'',oilGrade:'',oilQty:'',hours:'',samplingPoint:'',
-    condition:'clear',mode:'before',
-    c4B:'',c6B:'',c14B:'',c21B:'',c38B:'',c70B:'',c4A:'',c6A:'',c14A:'',c21A:'',c38A:'',c70A:'',
-    nasB:'',nasA:'',asB:'',asA:'',asT:'',rhB:'',rhA:'',rhT:'',
-    component:'piston',t4:'17',t6:'15',t14:'13',tNas:'7',
-    recs:{},recAuto:true,retestDays:'',obs:'',clientSign:'',id:newId(),
-    contactName:'',designation:'',phone:'',email:'',industry:'',leadSource:'',machineMake:'',totalPacks:'',totalOil:'',changeInterval:'',lastChange:'',oilSpend:'',filtration:'',problems:'',decisionMaker:'',status:'Sample taken',nextDate:'',nextStep:''};
-}
-let S=null;
-
-/* ---------- build dynamic form parts ---------- */
-const rows=document.getElementById('countRows');
-rows.innerHTML=SIZES.map(([k,l])=>`<tr><td class="sz">${l.replace(' µm(c)','')}</td>
- <td><input data-k="${k}B" inputmode="decimal" aria-label="${l} before, counts per ml"></td><td><span class="code" id="${k}Bcode"></span></td>
- <td class="col-after"><input data-k="${k}A" inputmode="decimal" aria-label="${l} after, counts per ml"></td><td class="col-after"><span class="code" id="${k}Acode"></span></td></tr>`).join('');
-document.getElementById('compSel').innerHTML=Object.entries(TARGETS).map(([k,t])=>`<option value="${k}">${t.label}${t.iso?' — '+t.iso.join('/'):''}</option>`).join('');
-document.getElementById('recList').innerHTML=RECS.map(([k,l])=>`<label class="chk"><input type="checkbox" data-rec="${k}">${l.replace(' after ___ days',' (set days below)')}</label>`).join('');
-
-/* ---------- derived results ---------- */
-function derive(){
-  const after=S.mode==='after';
-  const codes=side=>SIZES.map(([k])=>isoCode(S[k+side]));
-  const cB=codes('B'), cA=codes('A');
-  const tgt=[S.t4,S.t6,S.t14].map(v=>v===''?null:Number(v));
-  const hasT=tgt.every(v=>v!=null&&isFinite(v));
-  const res=after?cA:cB; const resSide=after?'A':'B';
-  const haveRes=res.slice(0,3).every(v=>v!=null);
-  let isoAbove=null, worst=null;
-  if(hasT&&haveRes){
-    isoAbove=res.slice(0,3).some((c,i)=>c>tgt[i]);
-    [0,1,2].forEach(i=>{const cnt=Number(S[SIZES[i][0]+resSide]);const lim=ISO_UP[Math.min(tgt[i],28)];const r=cnt/lim;
-      if(!worst||r>worst.r) worst={r,size:SIZES[i][2],i};});
-  }
-  const nasRes=after?S.nasA:S.nasB;
-  const nasAbove=(nasRes!==''&&S.tNas!=='')?Number(nasRes)>Number(S.tNas):null;
-  const asRes=after?S.asA:S.asB;
-  const asAbove=(asRes!==''&&S.asT!==''&&isFinite(parseFloat(asRes))&&isFinite(parseFloat(S.asT)))?parseFloat(asRes)>parseFloat(S.asT):null;
-  const rhRes=after?S.rhA:S.rhB;
-  const rhAbove=(rhRes!==''&&S.rhT!=='')?Number(rhRes)>Number(S.rhT):null;
-  const anyAbove=[isoAbove,nasAbove,asAbove,rhAbove].some(v=>v===true);
-  const anyKnown=[isoAbove,nasAbove,asAbove,rhAbove].some(v=>v!==null);
-  const wet=S.condition!=='clear'||rhAbove===true;
-  return {after,cB,cA,tgt,hasT,res,isoAbove,worst,nasAbove,asAbove,rhAbove,anyAbove,anyKnown,wet};
-}
-const fmtRatio=r=>r>=10?Math.round(r).toLocaleString('en-IN'):r.toFixed(1).replace(/\.0$/,'');
-const fmtNum=v=>{if(v===''||v==null)return '';const n=Number(v);return isFinite(n)?n.toLocaleString('en-IN'):String(v)};
-const isoStr=a=>a.slice(0,3).every(v=>v!=null)?a.slice(0,3).map(codeTxt).join('/'):'';
-
-function suggestedRecs(D){
-  if(!D.anyKnown) return {};
-  return {fit:!D.anyAbove&&!D.wet, filt:D.isoAbove===true||D.nasAbove===true, moist:D.wet, change:false, source:D.anyAbove, retest:true};
-}
-function suggestedDays(D){return D.anyAbove||D.wet?'30':'90'}
-
-function draftObs(D){
-  const t=TARGETS[S.component]; const comp=S.component==='oem'?'the OEM target':t.label.toLowerCase();
-  const eq=S.equipment||'the system'; const sp=S.samplingPoint?` (${S.samplingPoint})`:'';
-  const out=[];
-  const isoB=isoStr(D.cB), isoA=isoStr(D.cA), tStr=D.hasT?D.tgt.join('/'):'';
-  if(!isoB) return 'Enter the counts from the printout first.';
-  out.push(`Sample from ${eq}${sp} tested at ISO 4406 ${isoB}${S.nasB?` / NAS ${S.nasB}`:''}.`);
-  if(D.after&&isoA){
-    const pct=S.c4B&&S.c4A?Math.round((1-Number(S.c4A)/Number(S.c4B))*100):null;
-    out.push(`After offline filtration with PPS ELC, cleanliness improved to ISO 4406 ${isoA}${S.nasA?` / NAS ${S.nasA}`:''}${pct!=null&&pct>0?`, a ${pct}% reduction in particles ≥4 µm(c)`:''}.`);
-  }
-  if(D.hasT){
-    const w=D.worst;
-    if(D.isoAbove){
-      const steps=D.res[2]-D.tgt[2];
-      out.push(`${D.after?'The oil remains':'The oil is'} above the target of ${tStr} for ${comp}. At ≥${w.size} µm(c) it carries about ${fmtRatio(w.r)}× the particles the target allows${steps>0?`; each ISO code step doubles the particle count and this sample is ${steps} step${steps>1?'s':''} above target at ≥14 µm(c)`:''}.`);
-      out.push('Particles at this level accelerate wear of pumps, valves and bearings, cause valve sticking and shorten oil life.');
-      if(!D.after) out.push('Offline filtration with PPS ELC is recommended, with a re-test after purification to confirm the target is reached.');
-    } else if(D.isoAbove===false){
-      out.push(`The oil is within the target of ${tStr} for ${comp}. Continue routine monitoring.`);
-    }
-  }
-  if(S.condition!=='clear') out.push(`The sample was ${S.condition==='water'?'showing free water':'hazy'}. Optical counters count water droplets and air bubbles as particles, so moisture removal (PPS LVDH) and a water content test are advised.`);
-  return out.join(' ');
-}
-
-/* ---------- render ---------- */
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const dmy=v=>{if(!v)return '';const [y,m,d]=v.split('-');return d&&m&&y?`${d}-${m}-${y}`:v};
-const TICK='<svg viewBox="0 0 10 10"><path d="M1.5 5.2 4 7.6 8.6 2.2" fill="none" stroke="#111" stroke-width="1.8"/></svg>';
-const cb=(on,l)=>`<span class="cb"><i>${on?TICK:''}</i>${l}</span>`;
-
-function render(){
-  const D=derive();
-  document.getElementById('resWrap').classList.toggle('mode-after',D.after);
-  document.querySelectorAll('.col-after-f').forEach(e=>e.style.display=D.after?'':'none');
-  document.getElementById('barNo').textContent=S.reportNo||'—';
-  document.title=(S.client?S.client+' – ':'')+'PPS Particle Count Report';
-
-  // code chips in form
-  SIZES.forEach(([k],i)=>{['B','A'].forEach(side=>{
-    const el=document.getElementById(k+side+'code'); const c=side==='B'?D.cB[i]:D.cA[i];
-    el.textContent=i<3?codeTxt(c):(c==null?'':'—');
-    el.className='code'+(c!=null&&i<3?' has':'');
-    const isRes=(side==='A')===D.after;
-    if(isRes&&i<3&&c!=null&&D.hasT) el.classList.add(c>D.tgt[i]?'above':'within');
-  })});
-
-  // sanity warnings
-  const warns=[];
-  ['B','A'].forEach(side=>{ if(side==='A'&&!D.after) return;
-    const v=SIZES.map(([k])=>S[k+side]===''?null:Number(S[k+side]));
-    for(let i=1;i<v.length;i++){ if(v[i]!=null&&v[i-1]!=null&&v[i]>v[i-1]) warns.push(`Check the ${side==='B'?'before':'after'} counts: ≥${SIZES[i][2]} can't be higher than ≥${SIZES[i-1][2]}, because the ≥${SIZES[i-1][2]} count already includes every particle ≥${SIZES[i][2]}. Probably a typing mistake.`)}
-  });
-  document.getElementById('warnBox').textContent=warns.join(' ');
-
-  // recommendations
-  const sug=suggestedRecs(D);
-  if(S.recAuto){ S.recs=sug; if(D.anyKnown) S.retestDays=suggestedDays(D); }
-  document.querySelectorAll('[data-rec]').forEach(el=>el.checked=!!S.recs[el.dataset.rec]);
-  document.getElementById('recReset').hidden=S.recAuto;
-  const rd=document.querySelector('[data-k="retestDays"]'); if(document.activeElement!==rd) rd.value=S.retestDays;
-
-  // report
-  const t=TARGETS[S.component];
-  const resTitle=D.after?'Result (After)':'Result';
-  const wr=(above)=>above==null?cb(false,'Within')+' '+cb(false,'Above target'):cb(!above,'Within')+' '+cb(above,'Above target');
-  const cell=(v)=>v===''||v==null?'':esc(v);
-  const isoCells=a=>a.slice(0,3).every(v=>v==null)?'___ / ___ / ___':a.slice(0,3).map(c=>c==null?'___':codeTxt(c)).join(' / ');
-  let verdict='';
-  if(D.hasT&&D.isoAbove!=null){
-    const w=D.worst; const comp=S.component==='oem'?'the OEM target':t.label.toLowerCase();
-    if(D.isoAbove) verdict=`<div class="r-verdict above"><div class="tagv">ABOVE TARGET</div><div class="txt"><span><b>${fmtRatio(w.r)}× the allowed particles at ≥${w.size} µm(c)</b> for ${esc(comp)} (target ${D.tgt.join('/')}, measured ${isoStr(D.res)}).</span></div></div>`;
-    else verdict=`<div class="r-verdict within"><div class="tagv">WITHIN TARGET</div><div class="txt"><span><b>Measured ${isoStr(D.res)}</b> against a target of ${D.tgt.join('/')} for ${esc(comp)}.</span></div></div>`;
-    if(D.after&&S.c4B&&S.c4A){const pct=Math.round((1-Number(S.c4A)/Number(S.c4B))*100); if(pct>0) verdict=verdict.replace('</span></div></div>',` Filtration removed ${pct}% of particles ≥4 µm(c).</span></div></div>`)}
-  }
-  const tDays=S.recs.retest&&S.retestDays?S.retestDays:'______';
-  const after=D.after;
-  document.getElementById('report').innerHTML=`
-  <div class="r-head"><img src="${LOGO}" alt="Prime Power Systems"><div class="co">
-    <h2>PRIME POWER SYSTEMS</h2><div class="tag">Industrial Oil Purification &amp; Reliability Services</div>
-    <div>18, 2nd Street, MGR Nagar, Rathinapuri, Sanganoor, Coimbatore - 641 027, Tamil Nadu</div>
-    <div>+91 93639 36420 | info@ppsystemss.com | www.primepowersystems.co | GSTIN: 33AAFFP5686C1Z9</div></div></div>
-  <div class="r-rule"></div>
-  <div class="r-title"><div><h3>OIL ANALYSIS REPORT – PARTICLE COUNT</h3><div class="sub">Offline Particle Counter | ISO 4406 • NAS 1638 • SAE AS4059</div></div><div class="form">Form PPS-F-05</div></div>
-  <div class="r-meta"><div><b>REPORT NO.</b><span>${esc(S.reportNo)}</span></div><div><b>TEST DATE</b><span>${dmy(S.testDate)}</span></div><div><b>SAMPLE DATE</b><span>${dmy(S.sampleDate)}</span></div><div><b>TESTED BY</b><span>${esc(S.testedBy)}</span></div></div>
-
-  <div class="r-sec"><em>01</em>CLIENT &amp; SAMPLE DETAILS</div>
-  <div class="r-kv">
-    <span class="k">Client Name</span><span class="v span3">${esc(S.client)}</span>
-    <span class="k">Address</span><span class="v span3">${esc(S.address)}</span>
-    <span class="k">Equipment / System</span><span class="v">${esc(S.equipment)}</span><span class="k">Sample ID</span><span class="v">${esc(S.sampleId)}</span>
-    <span class="k">Oil Grade / Brand</span><span class="v">${esc(S.oilGrade)}</span><span class="k">Oil Quantity (L)</span><span class="v">${esc(S.oilQty)}</span>
-    <span class="k">Sampling Point</span><span class="v">${esc(S.samplingPoint)}</span><span class="k">Hours in Service</span><span class="v">${esc(S.hours)}</span>
-  </div>
-
-  <div class="r-sec"><em>02</em>INSTRUMENT &amp; TEST CONDITIONS</div>
-  <div class="r-kv">
-    <span class="k">Particle Counter</span><span class="v">${esc(S.counter)}</span><span class="k">Sr. No.</span><span class="v">${esc(S.counterSr)}</span>
-    <span class="k">Last Calibration</span><span class="v">${dmy(S.calDate)}</span><span></span><span></span>
-  </div>
-  <div class="r-line">${cb(S.iso11171,'Calibration: ISO 11171')}
-    <span>Sample condition: ${cb(S.condition==='clear','Clear')} ${cb(S.condition==='hazy','Hazy')} ${cb(S.condition==='water','Free water')}</span></div>
-
-  <div class="r-sec"><em>03</em>PARTICLE COUNT RESULTS</div>
-  <table class="r-t"><thead><tr><th>Particle Size</th><th>Before – Counts / ml</th><th>Before – Code</th><th>After – Counts / ml</th><th>After – Code</th></tr></thead><tbody>
-  ${SIZES.filter(([k],i)=>i<4||S[k+'B']!==''||(after&&S[k+'A']!=='')).map(([k,l],i)=>`<tr><td>${l}</td><td>${fmtNum(S[k+'B'])}</td>${i<3?`<td class="hi">${codeTxt(D.cB[i])}</td>`:'<td class="dash">–</td>'}<td>${after?fmtNum(S[k+'A']):''}</td>${i<3?`<td class="hi">${after?codeTxt(D.cA[i]):''}</td>`:'<td class="dash">–</td>'}</tr>`).join('')}
-  </tbody></table>
-
-  <div class="r-sec"><em>04</em>CLEANLINESS SUMMARY</div>
-  <table class="r-t"><thead><tr><th>Standard</th><th>Before</th><th>After</th><th>Target</th><th>${resTitle}</th></tr></thead><tbody>
-    <tr><td>ISO 4406 code (≥4/≥6/≥14 µm(c))</td><td class="hi">${isoCells(D.cB)}</td><td class="hi">${after?isoCells(D.cA):'___ / ___ / ___'}</td><td>${D.hasT?D.tgt.join(' / '):'___ / ___ / ___'}</td><td>${wr(D.isoAbove)}</td></tr>
-    <tr><td>NAS 1638 class</td><td class="hi">${cell(S.nasB)}</td><td class="hi">${after?cell(S.nasA):''}</td><td>${cell(S.tNas)}</td><td>${wr(D.nasAbove)}</td></tr>
-    <tr><td>SAE AS4059 class</td><td>${cell(S.asB)}</td><td>${after?cell(S.asA):''}</td><td>${cell(S.asT)}</td><td>${wr(D.asAbove)}</td></tr>
-    <tr><td>Water saturation (%RH), if measured</td><td>${cell(S.rhB)}</td><td>${after?cell(S.rhA):''}</td><td>${cell(S.rhT)}</td><td>${wr(D.rhAbove)}</td></tr>
-  </tbody></table>
-  ${verdict}
-  <div class="r-targets-h">Typical target cleanliness, ISO 4406 (indicative – always follow the equipment OEM's recommendation)</div>
-  <div class="r-targets">${Object.entries(TARGETS).filter(([k])=>k!=='oem').map(([k,v])=>`<div class="${k===S.component?'sel':''}">${v.label}<b>${v.iso.join('/')}</b></div>`).join('')}</div>
-
-  <div class="r-sec"><em>05</em>RECOMMENDATION</div>
-  <div class="r-recs">${RECS.map(([k,l])=>cb(!!S.recs[k],k==='retest'?`Re-test after <b>${esc(tDays)}</b> days`:l)).join('')}</div>
-  <div class="r-obs"><b>OBSERVATIONS / IMPRESSION</b><p>${esc(S.obs)}</p></div>
-  <div class="r-notes">Notes: Particle counts are per ml, sized to ISO 11171 calibration. ISO 4406 codes refer to ≥4 / ≥6 / ≥14 µm(c). Results relate only to the sample tested as received; sampling method and bottle cleanliness affect results.</div>
-  <div class="r-sign"><div><b>Client Acknowledgement</b><div class="sl"><span>Name</span><span>${esc(S.clientSign)}</span></div><div class="sl sig"><span>Signature &amp; Seal</span><span></span></div></div>
-    <div><b>Analysed By (Prime Power Systems)</b><div class="sl"><span>Name</span><span>${esc(S.analysedBy||S.testedBy)}</span></div><div class="sl sig"><span>Signature</span><span></span></div></div></div>
-  <div class="r-foot">Prime Power Systems | 18, 2nd Street, MGR Nagar, Sanganoor, Coimbatore - 641 027 | +91 93639 36420 | info@ppsystemss.com</div>`;
-  fitPreview();
-}
-
-/* ---------- preview scaling ---------- */
-function fitPreview(){
-  const pane=document.getElementById('previewPane'), wrap=document.getElementById('pageWrap'), page=document.getElementById('report');
-  if(!pane.offsetWidth) return;
-  const avail=pane.clientWidth-(parseFloat(getComputedStyle(pane).paddingLeft)*2);
-  const s=Math.min(1,avail/794);
-  page.style.transform=`scale(${s})`;
-  wrap.style.width=(794*s)+'px'; wrap.style.height=(page.offsetHeight*s)+'px';
-}
-new ResizeObserver(fitPreview).observe(document.getElementById('previewPane'));
-
-/* ---------- saving ---------- */
-let saveTimer=null, saving=false, pending=false, serverOk=true;
-function setSaveState(t,err){const e=document.getElementById('saveState');e.textContent=t;e.classList.toggle('err',!!err)}
-function setServer(ok){serverOk=ok;document.getElementById('downBar').hidden=ok}
-function hasContent(){return String(S.client||'').trim()!==''}
-function persist(){
-  LS.set('ppspc.currentId',S.id);
-  const keepChanged=KEEP_KEYS.some(k=>SETTINGS[k]!==S[k]);
-  if(keepChanged){KEEP_KEYS.forEach(k=>SETTINGS[k]=S[k]); API.saveSettings(SETTINGS).catch(()=>setServer(false));}
-  if(!hasContent()){setSaveState('Type a client name to save');return}
-  setSaveState('Saving…'); clearTimeout(saveTimer); saveTimer=setTimeout(saveNow,600);
-}
-async function saveNow(){
-  clearTimeout(saveTimer); saveTimer=null;
-  if(!hasContent()) return true;
-  if(saving){pending=true;return false}
-  saving=true; const snap=JSON.parse(JSON.stringify(S));
-  try{
-    const res=await API.save(snap); setServer(true);
-    snap.updatedAt=res.updatedAt; const i=RECORDS.findIndex(r=>r.id===snap.id); if(i>=0) RECORDS[i]=Object.assign(RECORDS[i],snap); else RECORDS.unshift(snap);
-    setSaveState('Saved ✓'); updateCount();
-    return true;
-  }catch(e){ setServer(false); setSaveState('Not saved',true); return false; }
-  finally{ saving=false; if(pending){pending=false; saveNow();} }
-}
-window.addEventListener('beforeunload',e=>{ if((saveTimer||saving)&&hasContent()){ saveNow(); e.preventDefault(); e.returnValue=''; } });
-function updateCount(){document.getElementById('recN').textContent=RECORDS.length||'';}
-
-function loadInputs(){
-  document.querySelectorAll('[data-k]').forEach(el=>{
-    const k=el.dataset.k;
-    if(el.type==='radio') el.checked=S[k]===el.value;
-    else if(el.type==='checkbox') el.checked=!!S[k];
-    else el.value=S[k]??'';
-  });
-}
-document.getElementById('form').addEventListener('input',e=>{
-  const el=e.target;
-  if(el.dataset.rec){ S.recs={...S.recs,[el.dataset.rec]:el.checked}; S.recAuto=false; }
-  else if(el.dataset.k){
-    const k=el.dataset.k;
-    if(el.type==='radio'){ if(el.checked) S[k]=el.value; }
-    else if(el.type==='checkbox') S[k]=el.checked;
-    else S[k]=el.value;
-    if(k==='retestDays') S.recAuto=false;
-    if(k==='component'&&TARGETS[S.component].iso){
-      const t=TARGETS[S.component]; [S.t4,S.t6,S.t14]=t.iso.map(String); S.tNas=String(t.nas);
-      ['t4','t6','t14','tNas'].forEach(x=>document.querySelector(`[data-k="${x}"]`).value=S[x]);
-    }
-    if(['t4','t6','t14','tNas'].includes(k)&&S.component!=='oem'){
-      const t=TARGETS[S.component]; if(!t.iso||[S.t4,S.t6,S.t14].join('/')!==t.iso.join('/')){S.component='oem';document.getElementById('compSel').value='oem'}
-    }
-  }
-  render(); persist();
-});
-document.getElementById('form').addEventListener('change',e=>{ if(e.target.type==='radio'||e.target.tagName==='SELECT') e.target.dispatchEvent(new Event('input',{bubbles:true})) });
-document.getElementById('recReset').onclick=()=>{S.recAuto=true;S.retestDays='';render();persist()};
-document.getElementById('draftBtn').onclick=()=>{S.obs=draftObs(derive());document.getElementById('obsBox').value=S.obs;render();persist()};
-
-/* ---------- tabs (mobile) ---------- */
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
-  showRecords(false);
-  document.getElementById('main').dataset.view=b.dataset.view;
-  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',String(x===b)));
-  requestAnimationFrame(fitPreview);
-});
-
-/* ---------- open / new ---------- */
-function openRecord(rec){
-  S=Object.assign(blankReport(),JSON.parse(JSON.stringify(rec)));
-  LS.set('ppspc.currentId',S.id); loadInputs(); render(); setSaveState('Saved ✓');
-  showRecords(false); document.getElementById('form').scrollTop=0;
-}
-async function startNew(){
-  await saveNow();
-  const keep={}; KEEP_KEYS.forEach(k=>keep[k]=S?S[k]:SETTINGS[k]);
-  S=Object.assign(blankReport(),KEEP_DEFAULTS,SETTINGS,keep); S.reportNo=nextReportNo();
-  LS.set('ppspc.currentId',S.id); loadInputs(); render(); setSaveState('Type a client name to save');
-  showRecords(false); document.getElementById('form').scrollTop=0;
-  const c=document.querySelector('[data-k="client"]'); c&&c.focus();
-}
-let armTimer=null; const newBtn=document.getElementById('newBtn');
-newBtn.onclick=()=>{
-  if(!hasContent()){ startNew(); status('New report started.'); return; }
-  if(!newBtn.classList.contains('warn')){ newBtn.classList.add('warn'); newBtn.textContent='Click again for new'; armTimer=setTimeout(()=>{newBtn.classList.remove('warn');newBtn.textContent='New report'},3000); return; }
-  clearTimeout(armTimer); newBtn.classList.remove('warn'); newBtn.textContent='New report';
-  startNew(); status('Current report saved. New report started.');
-};
-
-/* ---------- records view ---------- */
-const STATUSES=['Sample taken','Report delivered','Quote sent','Won','Lost'];
-let rvFilter='All', rvSort='date-desc';
-function showRecords(on){
-  document.getElementById('recView').hidden=!on; document.body.classList.toggle('show-rec',on);
-  if(on){ renderRecords(); document.getElementById('rvSearch').focus(); } else requestAnimationFrame(fitPreview);
-}
-document.getElementById('recBtn').onclick=async()=>{
-  await saveNow();
-  try{ RECORDS=await API.list(); setServer(true); updateCount(); }catch(e){ setServer(false); }
-  showRecords(true);
-};
-document.getElementById('rvClose').onclick=()=>showRecords(false);
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!document.getElementById('recView').hidden) showRecords(false); });
-document.getElementById('rvSearch').oninput=renderRecords;
-document.getElementById('rvSort').onchange=e=>{rvSort=e.target.value;renderRecords()};
-document.querySelectorAll('table.rt th[data-s]').forEach(th=>th.onclick=()=>{
-  const s=th.dataset.s; const map={no:['no-desc','no-asc'],date:['date-desc','date-asc'],client:['client-asc','client-desc'],status:['status','status'],next:['next-asc','next-desc']};
-  const [a,b]=map[s]; rvSort=rvSort===a?b:a; const sel=document.getElementById('rvSort'); if([...sel.options].some(o=>o.value===rvSort)) sel.value=rvSort; renderRecords();
-});
-function recView(r){
-  const prev=S; S=Object.assign(blankReport(),r); const D=derive(); S=prev;
-  const iso=isoStr(D.cB); const after=r.mode==='after'?isoStr(D.cA):'';
-  return {r,iso,after,verdict:D.isoAbove==null?'':(D.isoAbove?'above':'within'),ratio:D.worst&&D.isoAbove?fmtRatio(D.worst.r):''};
-}
-function cmp(a,b){return a<b?-1:a>b?1:0}
-function renderRecords(){
-  const q=document.getElementById('rvSearch').value.trim().toLowerCase();
-  const counts={All:RECORDS.length}; STATUSES.forEach(s=>counts[s]=0); RECORDS.forEach(r=>{counts[r.status]=(counts[r.status]||0)+1});
-  document.getElementById('rvChips').innerHTML=['All',...STATUSES].map(s=>`<button type="button" class="chip" data-f="${esc(s)}" aria-pressed="${rvFilter===s}">${esc(s)}<span>${counts[s]||0}</span></button>`).join('');
-  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{rvFilter=c.dataset.f;renderRecords()});
-  let list=RECORDS.filter(r=>(rvFilter==='All'||r.status===rvFilter)&&(!q||[r.client,r.reportNo,r.equipment,r.contactName,r.industry,r.address,r.phone].join(' ').toLowerCase().includes(q)));
-  const no=r=>{const m=String(r.reportNo||'').match(/(\d+)\s*$/);return m?parseInt(m[1],10):0};
-  const sorters={
-    'date-desc':(a,b)=>cmp(b.testDate||'',a.testDate||'')||cmp(no(b),no(a)),
-    'date-asc':(a,b)=>cmp(a.testDate||'',b.testDate||'')||cmp(no(a),no(b)),
-    'client-asc':(a,b)=>cmp((a.client||'').toLowerCase(),(b.client||'').toLowerCase())||cmp(b.testDate||'',a.testDate||''),
-    'client-desc':(a,b)=>cmp((b.client||'').toLowerCase(),(a.client||'').toLowerCase()),
-    'next-asc':(a,b)=>cmp(a.nextDate||'9999',b.nextDate||'9999'),
-    'next-desc':(a,b)=>cmp(b.nextDate||'',a.nextDate||''),
-    'status':(a,b)=>cmp(STATUSES.indexOf(a.status),STATUSES.indexOf(b.status))||cmp(b.testDate||'',a.testDate||''),
-    'no-desc':(a,b)=>cmp(String(b.reportNo),String(a.reportNo))||cmp(no(b),no(a)),
-    'no-asc':(a,b)=>cmp(String(a.reportNo),String(b.reportNo))||cmp(no(a),no(b))
-  };
-  list.sort(sorters[rvSort]||sorters['date-desc']);
-  const sortKey=rvSort.split('-')[0]; document.querySelectorAll('table.rt th[data-s]').forEach(th=>th.classList.toggle('on',th.dataset.s===sortKey));
-  document.getElementById('rvTotal').textContent=`(${RECORDS.length})`;
-  const t=today();
-  document.getElementById('rvBody').innerHTML=list.map(r=>{const v=recView(r);
-    const nd=r.nextDate?`<span class="${r.nextDate<t&&!['Won','Lost'].includes(r.status)?'overdue':''}">${dmy(r.nextDate)}</span>`:'';
-    return `<tr data-id="${esc(r.id)}">
-      <td>${esc(r.reportNo)}${r.id===S.id?'<small>Open now</small>':''}</td>
-      <td>${dmy(r.testDate)}</td>
-      <td><b>${esc(r.client)}</b><small>${esc([r.contactName,r.phone].filter(Boolean).join(' · '))}</small></td>
-      <td>${esc(r.equipment)}<small>${esc(r.industry||'')}</small></td>
-      <td>${v.iso?'ISO '+v.iso:''}${r.nasB?`<small>NAS ${esc(r.nasB)}${r.mode==='after'&&r.nasA?' → '+esc(r.nasA):''}</small>`:''}</td>
-      <td>${v.verdict?`<span class="pill ${v.verdict}">${v.verdict==='above'?'Above target':'Within target'}</span>`:''}${v.ratio?`<small>${v.ratio}× allowed</small>`:''}</td>
-      <td><span class="st st-${esc((r.status||'').replace(/\s/g,''))}">${esc(r.status||'')}</span>${r.quoteValue?`<small>₹${esc(r.quoteValue)}</small>`:''}</td>
-      <td>${nd}<small>${esc(r.nextStep||'')}</small></td>
-      <td style="white-space:nowrap"><button type="button" class="rowbtn" data-act="open">Open</button> <button type="button" class="rowbtn del" data-act="del">Delete</button></td></tr>`}).join('');
-  const empty=document.getElementById('rvEmpty');
-  empty.hidden=list.length>0;
-  empty.textContent=RECORDS.length?'No records match this search or filter.':'No records yet. Start a report and type a client name; it saves here automatically.';
-}
-document.getElementById('rvBody').addEventListener('click',async e=>{
-  const tr=e.target.closest('tr[data-id]'); if(!tr) return;
-  const rec=RECORDS.find(r=>r.id===tr.dataset.id); if(!rec) return;
-  const act=e.target.dataset.act;
-  if(act==='del'){
-    const b=e.target;
-    if(!b.classList.contains('arm')){ b.classList.add('arm'); b.textContent='Confirm delete'; setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='Delete'}},3000); return; }
-    try{ await API.del(rec.id); RECORDS=RECORDS.filter(r=>r.id!==rec.id); updateCount();
-      if(S.id===rec.id){ S=Object.assign(blankReport(),KEEP_DEFAULTS,SETTINGS); S.reportNo=nextReportNo(); loadInputs(); render(); }
-      renderRecords(); status('Record deleted.'); }catch(err){ setServer(false); }
-    return;
-  }
-  await saveNow(); openRecord(rec);
-});
-
-const CSV_COLS=[['Report no','reportNo'],['Test date','testDate'],['Client','client'],['Address','address'],['Contact','contactName'],['Designation','designation'],['Mobile','phone'],['Email','email'],['Industry','industry'],['Lead source','leadSource'],['Equipment','equipment'],['Machine make','machineMake'],['Oil grade','oilGrade'],['Oil qty (L)','oilQty'],['Hours in service','hours'],['Sampling point','samplingPoint'],['Sample condition','condition'],
-  ['ISO before',x=>isoStr(SIZES.map(([k])=>isoCode(x[k+'B'])))],['NAS before','nasB'],['ISO after',x=>x.mode==='after'?isoStr(SIZES.map(([k])=>isoCode(x[k+'A']))):''],['NAS after',x=>x.mode==='after'?x.nasA:''],
-  ['Target ISO',x=>[x.t4,x.t6,x.t14].join('/')],['Critical component',x=>(TARGETS[x.component]||{}).label||''],
-  ['Power packs in plant','totalPacks'],['Total oil (L)','totalOil'],['Oil change interval','changeInterval'],['Last oil change','lastChange'],['Yearly oil spend','oilSpend'],['Current filtration','filtration'],['Problems','problems'],['Decision maker','decisionMaker'],['Status','status'],['Next step','nextStep'],['Next step date','nextDate'],['Observations','obs']];
-
-document.getElementById('csvBtn').onclick=()=>{
-  if(!RECORDS.length){status('No records to export yet.');return}
-  const q=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const rows=[...RECORDS].sort((a,b)=>cmp(a.testDate||'',b.testDate||''));
-  const csv='\ufeff'+[CSV_COLS.map(c=>q(c[0])).join(','),...rows.map(x=>CSV_COLS.map(([,f])=>q(typeof f==='function'?f(x):x[f])).join(','))].join('\r\n');
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  a.download=`PPS_plant_records_${today()}.csv`; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
-  status('CSV exported. Open it in Excel.');
-};
-
-/* ---------- PDF (works offline: libraries are in /lib) ---------- */
-function status(m){const s=document.getElementById('status');s.textContent=m;clearTimeout(status.t);status.t=setTimeout(()=>s.textContent='',5000)}
-document.getElementById('pdfBtn').onclick=async()=>{
-  const btn=document.getElementById('pdfBtn'); btn.disabled=true; btn.textContent='Making PDF…';
-  try{
-    await saveNow();
-    const src=document.getElementById('report');
-    const holder=document.createElement('div'); holder.style.cssText='position:fixed;left:-10000px;top:0;';
-    const clone=src.cloneNode(true); clone.style.transform='none'; clone.style.boxShadow='none'; holder.appendChild(clone); document.body.appendChild(holder);
-    const canvas=await html2canvas(clone,{scale:2,backgroundColor:'#ffffff'});
-    holder.remove();
-    const {jsPDF}=window.jspdf; const pdf=new jsPDF({unit:'mm',format:'a4',orientation:'p'});
-    let w=210,h=canvas.height*210/canvas.width,x=0; if(h>297){w=297*canvas.width/canvas.height;h=297;x=(210-w)/2}
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.93),'JPEG',x,0,w,h);
-    pdf.setProperties({title:'Oil Analysis Report - Particle Count '+(S.reportNo||''),author:'Prime Power Systems'});
-    const safe=s=>String(s||'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
-    pdf.save(`PPS_ParticleCount_${safe(S.client)||'Client'}_${safe(S.reportNo)||'Report'}.pdf`);
-    status('PDF saved to your Downloads folder.');
-  }catch(e){ status('Could not build the PDF. Opening print instead.'); window.print(); }
-  finally{ btn.disabled=false; btn.textContent='Save PDF'; }
-};
-
-/* ---------- start ---------- */
-(async function boot(){
-  try{
-    const [recs,settings]=await Promise.all([API.list(),API.settings()]);
-    RECORDS=recs; SETTINGS=Object.assign({},KEEP_DEFAULTS,settings); setServer(true);
-  }catch(e){ setServer(false); SETTINGS=Object.assign({},KEEP_DEFAULTS); }
-  const cur=LS.get('ppspc.currentId',null); const rec=cur&&RECORDS.find(r=>r.id===cur);
-  if(rec){ S=Object.assign(blankReport(),rec); setSaveState('Saved ✓'); }
-  else { S=Object.assign(blankReport(),SETTINGS); S.reportNo=nextReportNo(); setSaveState('Type a client name to save'); }
-  loadInputs(); render(); updateCount();
-  setInterval(async()=>{ try{ await fetch('/api/ping',{cache:'no-store'}).then(r=>{if(!r.ok) throw 0}); setServer(true);}catch(e){ setServer(false); } },15000);
-})();
-</script>
+<script src="lib/html2canvas.min.js" defer></script>
+<script src="lib/jspdf.umd.min.js" defer></script>
+<script src="js/calc.js" defer></script>
+<script src="js/store.js" defer></script>
+<script src="js/app.js" defer></script>
 </body>
 </html>

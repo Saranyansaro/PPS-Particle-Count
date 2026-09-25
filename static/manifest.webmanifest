@@ -1,0 +1,19 @@
+{
+  "name": "PPS Particle Count Report",
+  "short_name": "PPS Report",
+  "description": "Prime Power Systems particle count report (PPS-F-05): enter counter results, share the PDF, keep a searchable records list. Works offline.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1f1f21",
+  "theme_color": "#1f1f21",
+  "lang": "en-IN",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

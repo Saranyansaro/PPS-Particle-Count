@@ -13,3 +13,6 @@ __pycache__/
 *.pyc
 node_modules/
 .vscode/
+
+# Local tool settings
+.claude/
