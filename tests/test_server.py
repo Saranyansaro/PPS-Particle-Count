@@ -109,6 +109,47 @@ class ServerTest(unittest.TestCase):
         # "keep my version" (no _base) saves on purpose
         self.assertEqual(self.json_call("PUT", "/api/records/rcon", {"client": "mine", "rev": "v6"})[0], 200)
 
+    def test_first_save_that_failed_is_not_a_deletion(self):
+        # a new report: base [null]; the first try never arrived, so the retry carries [null, f1]
+        code, _ = self.json_call("PUT", "/api/records/rnewfail", {"client": "N", "rev": "f2", "_base": [None, "f1"]})
+        self.assertEqual(code, 200)
+        # but once stored and confirmed, a real deletion is still detected
+        self.json_call("DELETE", "/api/records/rnewfail")
+        code, j = self.json_call("PUT", "/api/records/rnewfail", {"client": "N", "rev": "f3", "_base": ["f2"]})
+        self.assertEqual((code, j.get("reason")), (409, "deleted"))
+
+    def test_id_with_trailing_newline_rejected(self):
+        self.assertEqual(self.call("PUT", "/api/records/abc%0A", body={"client": "x"})[0], 400)
+        code, j = self.json_call("POST", "/api/import", {"records": [{"id": "imp\n", "client": "x"}]})
+        self.assertEqual(j["invalid"], 1)
+
+    def test_malformed_request_line_gets_an_answer(self):
+        import socket as so
+        host, port = self.httpd.server_address
+        c = so.create_connection((host, port), timeout=5)
+        c.sendall(b"GET / FOO BAR\r\n\r\n")
+        reply = c.recv(2000)
+        c.close()
+        # before the fix the handler crashed and closed the connection without any reply
+        self.assertIn(b"400", reply)
+        self.assertEqual(self.call("GET", "/api/ping")[0], 200)
+
+    def test_running_info_ignores_proxies(self):
+        port = self.httpd.server_address[1]
+        old = {k: os.environ.get(k) for k in ("HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy")}
+        os.environ["HTTP_PROXY"] = os.environ["http_proxy"] = "http://127.0.0.1:9"  # nothing listens there
+        os.environ.pop("NO_PROXY", None); os.environ.pop("no_proxy", None)
+        try:
+            info = server.running_info(port)
+        finally:
+            for k, v in old.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        self.assertIsNotNone(info)
+        self.assertIn("lan", info)
+
     def test_nan_rejected(self):
         self.assertEqual(self.call("PUT", "/api/settings", raw=b'{"testedBy": NaN}')[0], 400)
 
@@ -251,6 +292,23 @@ class RestoreTest(unittest.TestCase):
             self.assertEqual(con.execute("SELECT client FROM records").fetchone()[0], "Current")
             con.close()
             self.assertTrue(any("before_restore" in f for f in os.listdir(os.path.join(tmp, "backups"))))
+            # the oldest backup in a full folder: making the safety copy prunes it, the restore must still work
+            server.set_data_dir(tmp)
+            for i in range(server.KEEP_BACKUPS - 1):
+                open(os.path.join(tmp, "backups", f"pps_records_2026-08-{i:03d}.db"), "w").close()
+            oldest = os.path.join(tmp, "backups", "pps_records_2000-01-01.db")
+            server.copy_db(snap, oldest)
+            with server.connect() as con:
+                con.execute("DELETE FROM records")
+            self.assertEqual(server.restore(oldest, 1), 0)
+            con = sqlite3.connect(server.DB_PATH)
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM records").fetchone()[0], 1)
+            con.close()
+            self.assertEqual(server.restore(server.DB_PATH, 1), 1, "refuses the live database itself")
+            odd = os.path.join(tmp, "Backups #2 what?")
+            os.makedirs(odd)
+            server.copy_db(snap, os.path.join(odd, "b.db"))
+            self.assertEqual(server.restore(os.path.join(odd, "b.db"), 1), 0, "paths with # and ? work")
             bad = os.path.join(tmp, "bad.db")
             open(bad, "w").write("not a database")
             self.assertEqual(server.restore(bad, 1), 1)

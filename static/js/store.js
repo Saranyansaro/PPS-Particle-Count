@@ -14,7 +14,7 @@
   function conflictOf(old, base) {
     if (!Array.isArray(base)) return null;
     if (old) return base.includes(old.rev == null ? null : old.rev) ? null : { reason: 'changed', current: old };
-    return base.some(b => b != null) ? { reason: 'deleted', current: null } : null;
+    return !base.includes(null) && base.some(b => b != null) ? { reason: 'deleted', current: null } : null;
   }
   function conflictError(c) {
     const e = new Error(c.reason === 'deleted' ? 'deleted elsewhere' : 'changed elsewhere');
@@ -105,20 +105,33 @@
     label: 'this device',
     db: null,
     async open() {
-      this.db = await idbOpen();
-      this.db.onversionchange = () => { try { this.db.close(); } catch (e) { /* ignore */ } };
+      const db = await idbOpen();
+      db.onversionchange = () => { try { db.close(); } catch (e) { /* ignore */ } if (this.db === db) this.db = null; };
+      db.onclose = () => { if (this.db === db) this.db = null; };
+      this.db = db;
       return this;
+    },
+    /* One transaction, reopening the database first if iOS closed the connection.
+       Retries only when the transaction could not even start, so nothing is written twice. */
+    async run(stores, mode, fn) {
+      if (!this.db) await this.open();
+      try { return await tx(this.db, stores, mode, fn); }
+      catch (e) {
+        if (!e || e.name !== 'InvalidStateError') throw e;
+        this.db = null; await this.open();
+        return tx(this.db, stores, mode, fn);
+      }
     },
     async ping() { return true; },
     async list() {
-      const all = await tx(this.db, ['records'], 'readonly', (t, box) => {
+      const all = await this.run(['records'], 'readonly', (t, box) => {
         const rq = t.objectStore('records').getAll();
         rq.onsuccess = () => { box.v = rq.result || []; };
       });
       return all.sort((a, b) => C.cmp(String(b.updatedAt || ''), String(a.updatedAt || '')));
     },
     async get(id) {
-      return tx(this.db, ['records'], 'readonly', (t, box) => {
+      return this.run(['records'], 'readonly', (t, box) => {
         const g = t.objectStore('records').get(id);
         g.onsuccess = () => { box.v = g.result || null; };
       });
@@ -126,7 +139,7 @@
     async save(rec) {
       if (!C.validId(rec.id)) throw new Error('Bad record id');
       const now = C.stamp();
-      const res = await tx(this.db, ['records'], 'readwrite', (t, box) => {
+      const res = await this.run(['records'], 'readwrite', (t, box) => {
         const os = t.objectStore('records');
         const g = os.get(rec.id);
         g.onsuccess = () => {
@@ -143,11 +156,11 @@
       return res;
     },
     async del(id) {
-      await tx(this.db, ['records'], 'readwrite', t => { t.objectStore('records').delete(id); });
+      await this.run(['records'], 'readwrite', t => { t.objectStore('records').delete(id); });
       return { ok: true };
     },
     async settings() {
-      const rows = await tx(this.db, ['settings'], 'readonly', (t, box) => {
+      const rows = await this.run(['settings'], 'readonly', (t, box) => {
         const rq = t.objectStore('settings').getAll();
         rq.onsuccess = () => { box.v = rq.result || []; };
       });
@@ -156,7 +169,7 @@
       return out;
     },
     async saveSettings(s) {
-      await tx(this.db, ['settings'], 'readwrite', t => {
+      await this.run(['settings'], 'readwrite', t => {
         const os = t.objectStore('settings');
         Object.keys(s).forEach(k => os.put({ key: k, value: s[k] }));
       });
@@ -166,7 +179,7 @@
     async importData(data) {
       const recs = Array.isArray(data.records) ? data.records : [];
       const settings = data.settings || {};
-      return tx(this.db, ['records', 'settings'], 'readwrite', (t, box) => {
+      return this.run(['records', 'settings'], 'readwrite', (t, box) => {
         const os = t.objectStore('records');
         const res = { ok: true, added: 0, updated: 0, skipped: 0, invalid: 0 };
         box.v = res;
@@ -267,12 +280,24 @@
         if (serverSeen) return { store: ServerStore, online: false };
       }
     }
-    try {
-      if (!('indexedDB' in root) || !root.indexedDB) throw new Error('no IndexedDB');
-      return { store: await LocalStore.open(), online: true };
-    } catch (e) {
-      return { store: await FallbackStore.open(), online: true };
+    if ('indexedDB' in root && root.indexedDB) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await LocalStore.open();
+          // records kept in the fallback during an earlier failure come back into the database
+          const lost = lsRead();
+          if (Object.keys(lost.records).length) {
+            await LocalStore.importData({ records: Object.values(lost.records), settings: lost.settings });
+            try { localStorage.removeItem(LSKEY); } catch (e) { /* ignore */ }
+          }
+          return { store: LocalStore, online: true };
+        } catch (e) {
+          await new Promise(r => setTimeout(r, 400));
+        }
+      }
+      return { store: await FallbackStore.open(), online: true, degraded: true };
     }
+    return { store: await FallbackStore.open(), online: true }
   }
 
   root.PPSStore = { ServerStore, LocalStore, FallbackStore, pickStore };

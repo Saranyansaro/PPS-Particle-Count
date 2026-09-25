@@ -13,6 +13,7 @@ import hmac
 import json
 import mimetypes
 import os
+import pathlib
 import re
 import secrets
 import socket
@@ -207,7 +208,7 @@ class Handler(SimpleHTTPRequestHandler):
             raise BadRequest("body is not valid JSON")
 
     def end_headers(self):
-        if not self.path.startswith("/api/"):
+        if not getattr(self, "path", "").startswith("/api/"):
             self.send_header("Cache-Control", "no-cache")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
@@ -257,7 +258,8 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/ping":
                 if method != "GET":
                     raise BadRequest("not found", 404)
-                return self.send_json({"ok": True, "app": APP_ID, "version": VERSION, "auth": self.key_ok()}) or True
+                return self.send_json({"ok": True, "app": APP_ID, "version": VERSION, "auth": self.key_ok(),
+                                       "lan": bool(LAN_KEY)}) or True
             if not self.key_ok():
                 raise BadRequest("this device needs the access link shown on the laptop", 401)
             getattr(self, "api_" + method.lower())(path)
@@ -275,7 +277,7 @@ class Handler(SimpleHTTPRequestHandler):
     @staticmethod
     def record_id(path):
         rid = unquote(path.split("/api/records/", 1)[1])
-        if not ID_RE.match(rid):
+        if not ID_RE.fullmatch(rid):
             raise BadRequest("bad record id")
         return rid
 
@@ -366,7 +368,7 @@ class Handler(SimpleHTTPRequestHandler):
                         current = json.loads(old["data"])
                         if current.get("rev") not in base:
                             raise BadRequest("changed elsewhere", 409, {"reason": "changed", "current": current})
-                    elif any(b is not None for b in base):
+                    elif None not in base and any(b is not None for b in base):
                         raise BadRequest("deleted elsewhere", 409, {"reason": "deleted", "current": None})
                 created = (old["created_at"] if old else None) or now
                 upsert(con, rec, created, now)
@@ -394,7 +396,7 @@ class Handler(SimpleHTTPRequestHandler):
         res = {"ok": True, "added": 0, "updated": 0, "skipped": 0, "invalid": 0}
         with LOCK, connect() as con:
             for rec in data["records"]:
-                if not isinstance(rec, dict) or not isinstance(rec.get("id"), str) or not ID_RE.match(rec["id"]):
+                if not isinstance(rec, dict) or not isinstance(rec.get("id"), str) or not ID_RE.fullmatch(rec["id"]):
                     res["invalid"] += 1
                     continue
                 old = con.execute("SELECT created_at, updated_at FROM records WHERE id=?", (rec["id"],)).fetchone()
@@ -446,12 +448,20 @@ def lan_ip():
         return None
 
 
-def already_running(port):
+def running_info(port):
+    """The ping reply of a copy of this app already running on the port, or None.
+    Goes direct: a system proxy must not answer for this computer."""
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/ping", timeout=1.5) as r:
-            return json.loads(r.read().decode()).get("app") == APP_ID
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(f"http://127.0.0.1:{port}/api/ping", timeout=1.5) as r:
+            j = json.loads(r.read().decode())
+            return j if j.get("app") == APP_ID else None
     except Exception:
-        return False
+        return None
+
+
+def already_running(port):
+    return running_info(port) is not None
 
 
 def lan_key():
@@ -460,7 +470,7 @@ def lan_key():
     try:
         with open(path, encoding="utf-8") as f:
             k = f.read().strip()
-        if re.match(r"^[A-Za-z0-9_-]{16,}$", k):
+        if re.fullmatch(r"[A-Za-z0-9_-]{16,}", k):
             return k
     except OSError:
         pass
@@ -475,10 +485,23 @@ def restore(path, port):
     if already_running(port):
         print("\n  The app is running. Close its window first, then run the restore again.\n")
         return 1
+    src_path = pathlib.Path(path).resolve()
+    if not src_path.is_file():
+        print(f"\n  File not found: {path}\n")
+        return 1
+    if os.path.exists(DB_PATH) and os.path.samefile(src_path, DB_PATH):
+        print("\n  That is the live database itself. Choose a file from the backups folder.\n")
+        return 1
+    # read the backup completely into memory first: making the safety copy below may prune old
+    # backups, and the file being restored could be one of them
     try:
-        con = sqlite3.connect(f"file:{os.path.abspath(path)}?mode=ro", uri=True)
-        n = con.execute("SELECT COUNT(*) FROM records").fetchone()[0]
-        con.close()
+        src = sqlite3.connect(src_path.as_uri() + "?mode=ro", uri=True)
+        try:
+            n = src.execute("SELECT COUNT(*) FROM records").fetchone()[0]
+            mem = sqlite3.connect(":memory:")
+            src.backup(mem)
+        finally:
+            src.close()
     except Exception as e:
         print(f"\n  That file is not a PPS database ({e}).\n")
         return 1
@@ -488,7 +511,12 @@ def restore(path, port):
             os.remove(DB_PATH + extra)
         except OSError:
             pass
-    copy_db(os.path.abspath(path), DB_PATH)
+    dst = sqlite3.connect(DB_PATH)
+    try:
+        mem.backup(dst)
+    finally:
+        dst.close()
+        mem.close()
     init_db()
     print(f"\n  Restored {n} records from {path}.")
     if saved:
@@ -512,7 +540,16 @@ def main(argv=None):
     if args.restore:
         return restore(args.restore, args.port)
     url = f"http://localhost:{args.port}"
-    if already_running(args.port):
+    info = running_info(args.port)
+    if info and args.lan and not info.get("lan"):
+        print("\n  The app is already running, but without phone access.")
+        print("  Close its black window, then start start_lan again.\n")
+        time.sleep(4)
+        return 1
+    if info:
+        if args.lan:
+            print(f"\n  The app is already running with phone access. On your phone open:\n"
+                  f"    http://{lan_ip() or '<this-computer-ip>'}:{args.port}/?key={lan_key()}\n")
         print(f"\n  The app is already running. Opening {url}\n")
         if not args.no_browser:
             webbrowser.open(url)

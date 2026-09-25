@@ -74,6 +74,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,"Helvetica Neue",H
 .banner.conf{background:#9a5b00;color:#fff}
 .banner .btn{padding:6px 12px;font-size:13px}
 .banner .btn-light{background:#fff;color:#111}
+.banners{flex:none}
 
 /* Layout */
 main{flex:1;display:grid;grid-template-columns:minmax(340px,440px) 1fr;grid-template-rows:minmax(0,1fr);min-height:0;overflow:hidden}
@@ -237,12 +238,12 @@ table.rt td small,.card small{display:block;color:var(--muted);font-size:12.5px}
 .overdue{color:var(--bad);font-weight:700}
 .rowbtn{font:inherit;font-size:13px;background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:6px 12px;cursor:pointer;white-space:nowrap;touch-action:manipulation}
 .rowbtn.del{color:var(--bad)}
-.rowbtn.arm{background:var(--bad);color:#fff;border-color:var(--bad)}
+.rowbtn.arm{background:#b3261e;color:#fff;border-color:#b3261e}
 .rv-empty{color:var(--muted);padding:24px 4px}
 body.show-rec main{display:none}
 
 /* Toast messages */
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + var(--actions-h));z-index:35;background:#2c2e32;color:#fff;border-radius:8px;padding:10px 16px;font-size:14px;max-width:min(560px,calc(100% - 24px));box-shadow:0 6px 24px rgba(0,0,0,.3);text-align:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + var(--actions-h) + var(--banners-h,0px));z-index:35;background:#2c2e32;color:#fff;border-radius:8px;padding:10px 16px;font-size:14px;max-width:min(560px,calc(100% - 24px));box-shadow:0 6px 24px rgba(0,0,0,.3);text-align:center}
 .toast:empty{display:none}
 .toast .btn{margin-left:10px;padding:5px 12px;font-size:13px}
 /* Report preview zoom (phones) */
@@ -261,7 +262,6 @@ body.show-rec main{display:none}
   #form{border-right:0;padding:12px calc(12px + var(--sar)) 28px calc(12px + var(--sal))}
   main[data-view="form"] #previewPane{display:none}
   main[data-view="preview"] #form{display:none}
-  #previewPane{padding:12px}
   .bar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px 10px;padding:8px calc(12px + var(--sar)) 8px calc(12px + var(--sal));padding-top:calc(8px + var(--sat))}
   .bar .logo{height:30px;grid-row:1;grid-column:1}
   .bar h1{grid-row:1;grid-column:2;font-size:16px}
@@ -276,7 +276,13 @@ body.show-rec main{display:none}
   .bar{position:sticky;top:0;z-index:25}
   main{display:block;overflow:visible}
   #form,#previewPane,#recView{overflow:visible}
-  #previewPane{flex-direction:column;align-items:center}
+  #previewPane{flex-direction:column;align-items:center;overscroll-behavior:auto;padding:12px calc(12px + var(--sar)) 12px calc(12px + var(--sal))}
+  .pv-tools{position:sticky;left:0}
+  /* bars about saving stay in sight, just above the bottom buttons */
+  .banners{position:fixed;left:0;right:0;bottom:var(--actions-h);z-index:29;box-shadow:0 -4px 16px rgba(0,0,0,.25)}
+  .banner{padding-left:calc(12px + var(--sal));padding-right:calc(12px + var(--sar))}
+  .sheet{bottom:calc(16px + var(--actions-h))}
+  .bar .save{max-width:34vw;overflow:hidden;text-overflow:ellipsis}
   .pv-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;margin-bottom:10px;font-size:13px;color:var(--muted)}
   #previewPane.zoomed{overflow-x:auto;align-items:flex-start}
   .actions{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--ink);padding:9px calc(12px + var(--sar)) calc(9px + var(--sab)) calc(12px + var(--sal));gap:10px;border-top:1px solid #33363b}
@@ -339,6 +345,7 @@ body.show-rec main{display:none}
 </header>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<div class="banners" id="banners">
 <div class="banner down" id="downBar" hidden>
   <span id="downTxt">Can't reach the app server on the laptop, so changes are kept on this screen only. Start it again (double-click <b>start.bat</b> or run <b>python server.py</b>). Your typing is kept and saves by itself when the server is back.</span>
   <button class="btn btn-light" id="retryBtn" type="button">Try again</button>
@@ -351,6 +358,7 @@ body.show-rec main{display:none}
 <div class="banner upd" id="updBar" hidden>
   <span>A new version of the app is ready.</span>
   <button class="btn btn-light" id="updBtn" type="button">Update now</button>
+</div>
 </div>
 
 <section id="recView" hidden aria-label="Saved records">

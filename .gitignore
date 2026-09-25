@@ -5,6 +5,10 @@ data/*.db-shm
 data/backups/*
 !data/backups/.gitkeep
 data/_download_backup.db
+data/*.db-journal
+data/_download_*
+# phone access key for --lan: never publish it
+data/lan_key.txt
 
 # OS / editor
 .DS_Store

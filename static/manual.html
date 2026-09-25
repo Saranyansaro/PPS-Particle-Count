@@ -13,7 +13,7 @@ header{background:var(--ink);color:#fff;padding:18px 24px;padding-top:calc(18px 
 header img{height:44px;background:#fff;border-radius:4px;padding:2px 5px}
 header h1{margin:0;font-size:21px}
 header p{margin:2px 0 0;color:#c9ccd1;font-size:14px}
-main{max-width:820px;margin:0 auto;padding:10px 20px 60px}
+main{max-width:820px;margin:0 auto;padding:10px max(20px,env(safe-area-inset-right)) 60px max(20px,env(safe-area-inset-left))}
 .tbl{overflow-x:auto}
 .steps li{margin:8px 0}
 h2{font-size:20px;margin:34px 0 8px;padding-bottom:4px;border-bottom:3px solid var(--amber)}
@@ -50,7 +50,7 @@ nav a{color:var(--ink)}
 <h3>PDF on the iPhone</h3>
 <p>Tap <b>Share PDF</b>. The iPhone share sheet opens: send it on WhatsApp or Mail, or choose <b>Save to Files</b>. If a small box says <i>Your PDF is ready</i>, tap <b>Share / Save</b> (the iPhone sometimes wants a second tap).</p>
 <h3>Back up the iPhone every week</h3>
-<p>Records → <b>Backup file</b> → <b>Save to Files</b> (iCloud Drive or Google Drive), or send it to yourself on WhatsApp or email. The app reminds you with a red dot on Records when a week has passed. If the phone is lost, the backup file is the only copy.</p>
+<p>Records → <b>Backup file</b> → <b>Save to Files</b> (iCloud Drive or Google Drive), or send it to yourself on WhatsApp or email. A red dot on Records reminds you until your first backup, then again 7 days after the last one. If the phone is lost, the backup file is the only copy.</p>
 <h3>Updates</h3>
 <p>When a new version is published, a blue bar says <i>A new version of the app is ready</i>. Tap <b>Update now</b>. Your records are not touched.</p>
 
@@ -105,7 +105,7 @@ On Windows, on the first install screen, <b>tick "Add python.exe to PATH"</b> be
 <li><b>Filter by status</b> with the buttons: Sample taken, Report delivered, Quote sent, Won, Lost. Each shows its count.</li>
 <li>A <b style="color:#b3261e">red next-step date</b> means it's overdue and the lead isn't closed.</li>
 <li>Click any row (or <b>Open</b>) to open that report and edit it. Changes save automatically.</li>
-<li><b>Delete</b> needs two clicks: Delete, then Confirm delete. This can't be undone (except from a backup).</li>
+<li><b>Delete</b> needs two taps: Delete, then Confirm delete. Tap <b>Undo</b> in the message at the bottom within 10 seconds to bring it back; after that, only a backup can.</li>
 <li><b>Export to Excel (CSV)</b> gives you every record with all plant details in one sheet.</li>
 <li><b>Backup file</b> saves every record in one file. <b>Restore / import</b> reads such a file back (see section 6).</li>
 <li>Press <kbd>Esc</kbd> or <b>Back to report</b> to return.</li>
@@ -142,6 +142,7 @@ On Windows, on the first install screen, <b>tick "Add python.exe to PATH"</b> be
 <li>The black window shows a link like <code>http://192.168.1.25:8765/?key=Xy7…</code>. Open that <b>exact link</b> on your phone (the <code>?key=</code> part is the password that stops other people on the Wi-Fi from seeing your records). The phone remembers it.</li>
 <li>If Windows Firewall asks, allow access on <b>Private networks</b> only.</li>
 </ol>
+<p>If <code>start.bat</code> is already open, close it first: <code>start_lan</code> tells you so. To change the key (for example after a phone is lost), stop the app, delete <code>data\lan_key.txt</code> and start <code>start_lan</code> again; open the new link on your phones.</p>
 <p>On this address, <b>Share PDF</b> may download the file instead of opening the share sheet; that's normal.</p>
 <h3>Option B: the iPhone app on its own, then move records to the laptop</h3>
 <ol>
@@ -175,7 +176,7 @@ On Windows, on the first install screen, <b>tick "Add python.exe to PATH"</b> be
 <tr><td>"The app is already running"</td><td>It is open in another black window; the browser opens it for you. Use that one.</td></tr>
 <tr><td>"Port 8765 is used by another program"</td><td>Close that program, or start with <code>python server.py --port 8766</code> and open <code>http://localhost:8766</code>.</td></tr>
 <tr><td>Page is blank or old-looking</td><td>Press <kbd>Ctrl</kbd>+<kbd>F5</kbd> to reload.</td></tr>
-<tr><td>"Type a client name to save"</td><td>Reports save only once they have a client name.</td></tr>
+<tr><td>"Add client name to save"</td><td>Reports save only once they have a client name.</td></tr>
 <tr><td>PDF didn't appear</td><td>Look in your Downloads folder. If your browser blocks downloads, allow them for localhost.</td></tr>
 <tr><td>iPhone: no "Add to Home Screen"</td><td>Open the address in Safari itself (not inside WhatsApp or Chrome), then Share → Add to Home Screen.</td></tr>
 <tr><td>iPhone: records disappeared</td><td>Did you open it from Safari instead of the home-screen icon? They keep separate records. Otherwise restore your latest backup file with Records → Restore / import.</td></tr>

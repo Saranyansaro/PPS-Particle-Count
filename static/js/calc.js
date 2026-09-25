@@ -138,12 +138,13 @@
 
   function suggestedRecs(D) {
     if (!D.anyKnown) return D.wet ? { fit: false, filt: false, moist: true, change: false, source: false, retest: true } : {};
-    return { fit: !D.anyAbove && !D.wet, filt: D.isoAbove === true || D.nasAbove === true || D.asAbove === true,
+    const isoUnjudged = D.res.slice(0, 3).every(v => v != null) && D.isoAbove === null;
+    return { fit: !D.anyAbove && !D.wet && !isoUnjudged, filt: D.isoAbove === true || D.nasAbove === true || D.asAbove === true,
       moist: D.wet, change: false, source: D.anyAbove, retest: true };
   }
   const suggestedDays = D => (D.anyAbove || D.wet ? '30' : '90');
 
-  const fmtRatio = r => (r >= 10 ? Math.round(r).toLocaleString('en-IN') : r > 1 && r < 1.1 ? r.toFixed(2) : r.toFixed(1).replace(/\.0$/, ''));
+  const fmtRatio = r => (r >= 10 ? Math.round(r).toLocaleString('en-IN') : r > 1 && r < 1.1 ? Math.max(1.01, Math.round(r * 100) / 100).toFixed(2) : r.toFixed(1).replace(/\.0$/, ''));
   function fmtNum(v) {
     const n = num(v);
     if (n == null) return '';

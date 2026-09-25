@@ -30,6 +30,29 @@ jobs:
       - name: Server tests (oldest supported Python)
         run: python -m unittest discover -s tests -v
 
+  # Real browser runs: iPhone (WebKit) and laptop (Chromium). Reported separately; they don't hold up publishing.
+  browser-tests:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Playwright browsers
+        working-directory: tests/e2e
+        run: npm ci && npx playwright install --with-deps webkit chromium
+      - name: iPhone and laptop journey
+        working-directory: tests/e2e
+        run: node journey.mjs
+      - name: Laptop server outage while typing
+        working-directory: tests/e2e
+        run: node outage.mjs
+
   deploy:
     needs: test
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

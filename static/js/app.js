@@ -34,6 +34,8 @@
 
   function status(m, action) {
     const t = $('toast');
+    // on phones the saving bars sit above the bottom buttons: keep messages above them
+    t.style.setProperty('--banners-h', (phone() ? $('banners').offsetHeight : 0) + 'px');
     t.textContent = m;
     if (action) {
       const b = document.createElement('button');
@@ -131,9 +133,19 @@
     $('recReset').hidden = S.recAuto && !S.retestManual;
     const rd = document.querySelector('[data-k="retestDays"]'); if (document.activeElement !== rd) rd.value = S.retestDays;
 
+    // observations written by the app follow later changes to the results
+    let obsStale = false;
+    if (String(S.obsAuto || '').trim()) {
+      const fresh = C.draftObs(S, D);
+      if (String(S.obs || '').trim() === String(S.obsAuto).trim()) {
+        if (fresh && fresh !== S.obsAuto) { S.obs = S.obsAuto = fresh; if (document.activeElement !== $('obsBox')) $('obsBox').value = fresh; }
+      } else if (fresh && fresh !== S.obsAuto) obsStale = true;
+    }
+
     // plain-language checks
     const wb = $('warnBox'); wb.textContent = '';
     const warns = C.warnings(S, D);
+    if (obsStale) warns.push('The results changed after the observations were written: tap "Write observations from the results" again, or update your text.');
     if (S.component === 'oem' && !D.hasT) warns.push('Type the OEM target codes (≥4, ≥6 and ≥14) under 04 Target cleanliness.');
     warns.forEach(t => { const p = document.createElement('p'); p.textContent = t; wb.appendChild(p); });
     const no = String(S.reportNo || '').trim();
@@ -155,7 +167,10 @@
       return `<div class="r-verdict above"><div class="tagv">ABOVE TARGET</div><div class="txt"><span>${lead}${extra}</span></div></div>`;
     }
     const wet = D.wet ? ` The sample was ${S.condition === 'water' ? 'showing free water' : 'hazy'}, so moisture removal is advised.` : '';
-    const lead = D.isoAbove === false ? `<b>Measured ${isoStr(D.res)}</b> against a target of ${D.tgt.join('/')} for ${comp}.` : '<b>All measured values are within target.</b>';
+    const judged = [D.nasAbove === false && 'NAS 1638', D.asAbove === false && 'SAE AS4059', D.rhAbove === false && 'water saturation'].filter(Boolean);
+    const lead = D.isoAbove === false
+      ? `<b>Measured ${isoStr(D.res)}</b> against a target of ${D.tgt.join('/')} for ${comp}.`
+      : `<b>Within target for ${judged.join(', ')}.</b>${isoStr(D.res) ? ` ISO 4406 ${isoStr(D.res)} was not judged (no ISO target given).` : ''}`;
     return `<div class="r-verdict within"><div class="tagv">WITHIN TARGET</div><div class="txt"><span>${lead}${extra}${wet}</span></div></div>`;
   }
 
@@ -258,7 +273,8 @@
   function persist() {
     editRev++;
     journal(true);
-    if (!canSave(S)) { setSaveState('Type a client name to save'); return; }
+    if (!canSave(S)) { setSaveState('Add client name to save'); return; }
+    if (conflict) { setSaveState('Not saved', true); return; }
     setSaveState('Saving…');
     clearTimeout(saveTimer); saveTimer = setTimeout(() => saveNow(), 600);
   }
@@ -270,7 +286,13 @@
     if (!S || !canSave(S) || !isDirty() || conflict || (queued.id === S.id && queued.rev === editRev)) return saveChain;
     const snap = clone(S), rev = editRev, id = S.id;
     snap.rev = newRev();
-    if (baseRevs) { snap._base = baseRevs.slice(-20); baseRevs.push(snap.rev); }
+    if (baseRevs) {
+      // baseRevs[0] is the last revision the store confirmed (or null for a report never stored):
+      // it must always be sent, however many saves failed while offline
+      snap._base = baseRevs.length > 50 ? [baseRevs[0], ...baseRevs.slice(-49)] : baseRevs.slice();
+      baseRevs.push(snap.rev);
+      journal(true); // this revision may reach the store even if the page dies before the reply
+    }
     queued = { id, rev };
     const p = saveChain.then(() => doSave(snap, rev, id, opt));
     saveChain = p.catch(() => false);
@@ -279,6 +301,15 @@
   async function doSave(snap, rev, id, opt) {
     inFlight++;
     try {
+      if (autoNo && S && S.id === id && !(opt && opt.keepalive)) {
+        if (store.kind === 'server') { try { RECORDS = await store.list(); updateCount(); } catch (e) { /* the save below reports it */ } }
+        const no = String(snap.reportNo || '').trim();
+        if (RECORDS.some(r => r.id !== id && String(r.reportNo || '').trim() === no)) {
+          snap.reportNo = C.nextReportNo(RECORDS, null);
+          setField('reportNo', snap.reportNo); $('barNo').textContent = snap.reportNo;
+          status(`Report number changed to ${snap.reportNo}: ${no} was already used.`);
+        }
+      }
       const res = await store.save(snap, opt) || {};
       delete snap._base;
       setServer(true);
@@ -325,6 +356,7 @@
     clearConflict();
     baseRevs = null;           // save over the other copy on purpose
     queued = { id: null, rev: -1 };
+    if (!isDirty()) editRev++; // e.g. deleted elsewhere with nothing new typed: it still has to be written back
     saveNow().then(ok => { if (ok) status('Your version is saved.'); });
   };
   $('confTheirs').onclick = () => {
@@ -431,8 +463,13 @@
     if (['t4', 't6', 't14'].includes(k)) {
       const typed = [S.t4, S.t6, S.t14].map(x => String(x).trim()).join('/');
       const matches = c => !!(c && TARGETS[c] && TARGETS[c].iso && TARGETS[c].iso.join('/') === typed);
-      if (S.component !== 'oem' && !matches(S.component)) { prevComp = S.component; S.component = 'oem'; }
-      else if (S.component === 'oem' && matches(prevComp)) S.component = prevComp;
+      if (S.component !== 'oem' && !matches(S.component)) {
+        prevComp = S.component; S.component = 'oem';
+        if (TARGETS[prevComp] && String(S.tNas).trim() === String(TARGETS[prevComp].nas)) setField('tNas', '');
+      } else if (S.component === 'oem' && matches(prevComp)) {
+        S.component = prevComp;
+        if (!String(S.tNas || '').trim()) setField('tNas', String(TARGETS[prevComp].nas));
+      }
       $('compSel').value = S.component;
     }
     render(); persist();
@@ -481,6 +518,7 @@
   const scrollPos = {};
   function setView(v) {
     if (phone()) scrollPos[curView] = window.scrollY;
+    if (zoomed && v !== 'preview') $('zoomBtn').click();
     const rec = v === 'records';
     $('recView').hidden = !rec;
     document.body.classList.toggle('show-rec', rec);
@@ -518,7 +556,7 @@
     clearConflict();
     LS.set('ppspc.currentId', S.id); LS.del('ppspc.draft');
     loadInputs(); render();
-    setSaveState(fresh ? 'Type a client name to save' : 'Saved ✓');
+    setSaveState(fresh ? 'Add client name to save' : 'Saved ✓');
     if (!keepView) { setView('form'); toFormTop(); }
   }
   function newReport() {
@@ -537,7 +575,11 @@
     }
     return true;
   }
-  async function openRecord(id) {
+  async function openRecord(id, discard) {
+    if (!discard && !canSave(S) && editRev > 0) {
+      status('The report you started has no client name, so it is not saved.', { label: 'Discard it and open', run: () => openRecord(id, true) });
+      return;
+    }
     if (!(await leaveCurrent())) return;
     const rec = RECORDS.find(r => r.id === id); if (!rec) return;
     autoNo = false;
@@ -662,13 +704,15 @@
         RECORDS = RECORDS.filter(r => r.id !== rec.id); updateCount();
         if (chan) chan.postMessage({ type: 'deleted', id: rec.id });
         if (S.id === rec.id) { newReport(); setView('records'); }
-        renderRecords();
+        renderRecords(); updateNag();
         status(`Deleted ${copy.client || 'the record'}.`, {
           label: 'Undo',
           run: async () => {
             try {
               await store.importData({ records: [copy], settings: {} });
-              await refreshRecords(); renderRecords(); status('Record restored.');
+              await refreshRecords();
+              if (autoNo && !canSave(S)) { S.reportNo = C.nextReportNo(RECORDS, null); loadInputs(); render(); }
+              renderRecords(); updateNag(); status('Record restored.');
             } catch (err) { status('Could not restore: ' + (err.message || 'error')); }
           }
         });
@@ -756,9 +800,10 @@
 
   // ISO codes are written "ISO 16/12/9" so Excel doesn't turn them into dates
   const isoCsv = s => (s ? 'ISO ' + s : '');
+  const nasCsv = v => (String(v == null ? '' : v).trim() ? 'NAS ' + String(v).trim() : '');
   const CSV_COLS = [['Report no', 'reportNo'], ['Test date', 'testDate'], ['Sample date', 'sampleDate'], ['Client', 'client'], ['Address', 'address'], ['Contact', 'contactName'], ['Designation', 'designation'], ['Mobile', 'phone'], ['Email', 'email'], ['Industry', 'industry'], ['Lead source', 'leadSource'], ['Equipment', 'equipment'], ['Machine make', 'machineMake'], ['Oil grade', 'oilGrade'], ['Oil qty (L)', 'oilQty'], ['Hours in service', 'hours'], ['Sampling point', 'samplingPoint'], ['Sample condition', 'condition'],
-    ['ISO before', x => isoCsv(summary(x).iso)], ['NAS before', 'nasB'],
-    ['ISO after', x => isoCsv(summary(x).after)], ['NAS after', x => (x.mode === 'after' ? x.nasA : '')],
+    ['ISO before', x => isoCsv(summary(x).iso)], ['NAS before', x => nasCsv(x.nasB)],
+    ['ISO after', x => isoCsv(summary(x).after)], ['NAS after', x => (x.mode === 'after' ? nasCsv(x.nasA) : '')],
     ['Result', x => { const v = summary(x); return v.verdict === 'above' ? 'Above target' : v.verdict === 'within' ? 'Within target' : ''; }],
     ['Target ISO', x => ([x.t4, x.t6, x.t14].every(t => String(t == null ? '' : t).trim() !== '') ? 'ISO ' + [x.t4, x.t6, x.t14].join('/') : '')],
     ['Critical component', x => (TARGETS[x.component] || {}).label || ''],
@@ -845,7 +890,8 @@
       SETTINGS = Object.assign({}, KEEP_DEFAULTS, pickKeep(settings), mine);
       updateCount();
     } catch (e) { setServer(false, e && e.status === 401); return; }
-    if (!canSave(S) && autoNo) { S.reportNo = C.nextReportNo(RECORDS, null); loadInputs(); }
+    const taken = no => RECORDS.some(r => r.id !== S.id && String(r.reportNo || '').trim() === String(no || '').trim());
+    if (autoNo && (!canSave(S) || taken(S.reportNo))) { S.reportNo = C.nextReportNo(RECORDS, null); loadInputs(); }
     render();
     if (settingsDirty.size) saveSettings();
     if (isDirty() && canSave(S)) { queued = { id: null, rev: -1 }; saveNow(); }
@@ -859,9 +905,9 @@
   function registerSW() {
     if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
     const hadController = !!navigator.serviceWorker.controller;
-    let reloading = false;
+    let reloading = false, userAsked = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!hadController || reloading) return;
+      if ((!hadController && !userAsked) || reloading) return;
       reloading = true; location.reload();
     });
     navigator.serviceWorker.register('sw.js').then(reg => {
@@ -874,6 +920,7 @@
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
       $('updBtn').onclick = async () => {
         await saveNow();
+        userAsked = true;
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' }); else location.reload();
       };
     }).catch(() => { /* offline support is a bonus; the app still works */ });
@@ -889,6 +936,7 @@
     try { picked = await window.PPSStore.pickStore(KEY); }
     catch (e) { picked = { store: await window.PPSStore.FallbackStore.open(), online: true }; }
     store = picked.store;
+    if (picked.degraded) $('banners').insertAdjacentHTML('afterbegin', '<div class="banner down">This phone\'s app storage could not be opened, so saved records are not shown. Close the app completely (swipe it away) and open it again. What you type now is kept and merged back afterwards.</div>');
     if (picked.online) {
       try {
         const [recs, settings] = await Promise.all([store.list(), store.settings()]);
@@ -904,14 +952,14 @@
       baseRevs = Array.isArray(draft.base) ? draft.base : [S.rev == null ? null : S.rev];
       loadInputs(); render();
       if (canSave(S)) { setSaveState('Saving…'); saveNow(); status('Unsaved changes were recovered.'); }
-      else setSaveState('Type a client name to save');
+      else setSaveState('Add client name to save');
     } else if (rec) {
       S = normalise(rec); baseRevs = [S.rev == null ? null : S.rev];
       loadInputs(); render(); setSaveState('Saved ✓');
     } else {
       S = Object.assign(blankReport(), KEEP_DEFAULTS, pickKeep(SETTINGS));
       S.reportNo = C.nextReportNo(RECORDS, null); autoNo = true;
-      loadInputs(); render(); setSaveState('Type a client name to save');
+      loadInputs(); render(); setSaveState('Add client name to save');
     }
     LS.set('ppspc.currentId', S.id);
     updateCount(); setView('form'); updateNag();

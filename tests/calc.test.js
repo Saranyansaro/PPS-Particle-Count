@@ -268,3 +268,11 @@ test('report numbers sort by year then number, past 999', () => {
   const sorted = [...nos].sort((a, b) => C.reportKey(b) - C.reportKey(a));
   assert.deepEqual(sorted.slice(0, 4), ['PPS/PC/26-27/1000', 'PPS/PC/26-27/999', 'PPS/PC/26-27/012', 'PPS/PC/25-26/120']);
 });
+
+test('review fixes: ratio never reads 1.00x, unjudged ISO is not "fit"', () => {
+  assert.equal(C.fmtRatio(1300.01 / 1300), '1.01');
+  const D = C.derive(base({ c4B: '123456', c6B: '40000', c14B: '3000', t4: '', t6: '', t14: '', component: 'oem', nasB: '5', tNas: '7' }));
+  assert.equal(D.isoAbove, null);
+  assert.equal(D.verdict, 'within');
+  assert.equal(C.suggestedRecs(D).fit, false);
+});
