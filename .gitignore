@@ -1,0 +1,15 @@
+# Local database and backups: client data never goes to git
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/backups/*
+!data/backups/.gitkeep
+data/_download_backup.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+node_modules/
+.vscode/
