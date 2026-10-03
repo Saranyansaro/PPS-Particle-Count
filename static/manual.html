@@ -32,10 +32,10 @@ nav a{color:var(--ink)}
 </style>
 </head>
 <body>
-<header><img src="logo.png" alt=""><div><h1>PPS Particle Count Report – Manual</h1><p>Install on iPhone or laptop, enter tests, find records and keep your data safe</p></div></header>
+<header><img src="logo.png" alt=""><div><h1>PPS Field Report Creator – Manual</h1><p>Install on iPhone or laptop, fill in any PPS form, sign it by hand, find records and keep your data safe</p></div></header>
 <main>
 <nav>
-<a href="#iphone">0. iPhone app</a> · <a href="#setup">1. One-time setup (laptop)</a> · <a href="#start">2. Starting the app</a> · <a href="#report">3. Making a report</a> · <a href="#records">4. Records list</a> · <a href="#data">5. Where data is saved and backups</a> · <a href="#phone">6. Phone and laptop together</a> · <a href="#terms">7. What the numbers mean</a> · <a href="#trouble">8. Problems and fixes</a>
+<a href="#iphone">0. iPhone app</a> · <a href="#setup">1. One-time setup (laptop)</a> · <a href="#start">2. Starting the app</a> · <a href="#forms">3. The eight report forms</a> · <a href="#report">4. Making a report</a> · <a href="#sign">5. Signing by hand</a> · <a href="#photos">6. Photographs</a> · <a href="#records">7. Records list</a> · <a href="#data">8. Where data is saved and backups</a> · <a href="#phone">9. Phone and laptop together</a> · <a href="#terms">10. What the numbers mean</a> · <a href="#trouble">11. Problems and fixes</a>
 </nav>
 
 <h2 id="iphone">0. iPhone app (no laptop needed)</h2>
@@ -80,7 +80,23 @@ On Windows, on the first install screen, <b>tick "Add python.exe to PATH"</b> be
 </ol>
 <div class="box">Tip: bookmark <code>http://localhost:8765</code> in your browser. It only works while the app is running.</div>
 
-<h2 id="report">3. Making a report</h2>
+<h2 id="forms">3. The eight report forms</h2>
+<p>Click <b>New report</b> and pick the form you are filling in. Every form saves by itself, appears in <b>Records</b>, and prints as a PDF.</p>
+<table>
+<tr><th>Form</th><th>Report</th><th>Page</th><th>What it is for</th></tr>
+<tr><td>PPS-F-01</td><td>Equipment Commissioning &amp; Acceptance</td><td>A4 portrait</td><td>Installing an ELC machine: the accessories supplied, the first membrane patch test, and the customer's acceptance signature.</td></tr>
+<tr><td>PPS-F-02</td><td>ELC Test Report for Oil Purity</td><td>A4 portrait</td><td>Membrane patch (0.8 µm) before and after electrostatic liquid cleaning, with the NAS 1638 and ISO 4406 classes.</td></tr>
+<tr><td>PPS-F-03</td><td>LVDH Test Report for Moisture Removal</td><td>A4 portrait</td><td>Low vacuum dehydration: visual appearance, free water, crackle test, ppm and membrane patch, before and after.</td></tr>
+<tr><td>PPS-F-04</td><td>PHE Service Report</td><td>A4 portrait</td><td>Plate heat exchanger service: the problem, the twelve-point checklist, and the parts replaced.</td></tr>
+<tr><td>PPS-F-05</td><td>Oil Analysis – Particle Count</td><td>A4 portrait</td><td>The original report: counter results with ISO 4406, NAS 1638 and SAE AS4059 verdicts (sections 4 and 10).</td></tr>
+<tr><td>PPS-F-06</td><td>Field Service Report</td><td><b>A4 landscape</b></td><td>An on-site service call for ELC / oil purification equipment, with the 22-point component checklist.</td></tr>
+<tr><td>—</td><td>Oil Condition Report – Crackle Test</td><td>A4 portrait</td><td>Hot-plate crackle test for free and emulsified water: the band observed, photos of the sample and the plate, and the actions recommended.</td></tr>
+<tr><td>—</td><td>Oil Cleanliness Test Report (Patch Test)</td><td>A4 portrait</td><td>0.8 µm membrane patch before and after ELC cleaning, with the NAS 1638 rating and the customer's signature.</td></tr>
+</table>
+<p>Reports made before these forms existed are particle counts and still open exactly as they were. A backup file from an older version imports without any change.</p>
+<p>The form you used last is remembered, so <b>New report</b> starts there — tap <b>New report</b> again to choose a different one.</p>
+
+<h2 id="report">4. Making a report</h2>
 <ol>
 <li>Click <b>New report</b>. The report number fills itself (PPS/PC/26-27/001, 002 …). It restarts at 001 each financial year.</li>
 <li><b>Report:</b> check the dates and type your name in Tested by. Your name and the counter details are remembered for every future report.</li>
@@ -97,21 +113,45 @@ On Windows, on the first install screen, <b>tick "Add python.exe to PATH"</b> be
 <p>The right side shows the report exactly as it will print. On a phone, use the <b>Enter / Report / Records</b> switch at the top.</p>
 <p>If the app or phone closes while you type, nothing is lost: the next time you open it, it says <i>Unsaved changes were recovered</i>. A red note under Report no. means another saved report already has that number.</p>
 
-<h2 id="records">4. Records list</h2>
+<h2 id="sign">5. Signing by hand</h2>
+<p>Every signature line on a form is a signature pad. You sign with your finger on a phone, or with the mouse on a laptop.</p>
+<ol class="steps">
+<li>Tap the signature box (or the <b>Sign</b> link under it).</li>
+<li>Write your signature inside the box. The line thins as you write faster, so it looks written.</li>
+<li><b>Undo</b> removes the last stroke. <b>Clear</b> empties the box and you start again.</li>
+<li>Tap <b>Use this signature</b>. It appears in the box on the screen and prints on the dotted line where a wet signature would go.</li>
+<li>To change or remove it later, tap the box again (<b>Sign</b>), or tap <b>Clear</b> under the box to take it off the report.</li>
+</ol>
+<p><b>Sign once, use it on every report.</b> While signing, tick <b>Remember this as my signature</b>. From then on, opening any signature box offers <b>Use my saved signature</b> — tap it, then <b>Use this signature</b>. It is kept with your settings, so it is still there after closing the app, and it travels inside a <b>Backup file</b>.</p>
+<p>If you do not want your signature kept on this device, open any signature box and tap <b>Forget my saved signature</b>. Signatures already placed on a report stay there until you clear that box.</p>
+<p>Signing is part of the report data: it saves automatically, it is in the records list, and it appears in the PDF.</p>
+
+<h2 id="photos">6. Photographs</h2>
+<p>Forms that have an "affix membrane patch" or "insert photo" space accept a picture straight from the phone camera.</p>
+<ol class="steps">
+<li>Tap the dashed picture box (or the <b>Photo</b> link under it).</li>
+<li>Take a photo or choose one from the gallery.</li>
+<li>The app shrinks it to fit the report — a 3 MB camera picture becomes roughly 25 KB — and shows it in the box and on the report.</li>
+<li><b>Remove</b> takes it off again.</li>
+</ol>
+<p>A useful patch photo is taken square-on, on white paper, with the patch filling most of the frame. If a report gets very heavy with pictures, the app asks before adding another one: big reports take longer to save, back up and send.</p>
+
+<h2 id="records">7. Records list</h2>
 <p>Click <b>Records</b> in the top bar (the number shows how many are saved).</p>
 <ul>
-<li><b>Search</b> by client, report number, equipment, contact, industry, address or phone.</li>
+<li>Every form is in the same list. The <b>Details</b> column shows the report kind and the machine, and <b>Result</b> shows the headline figure (for a particle count, the ISO code).</li>
+<li><b>Search</b> by client, report number, equipment, contact, address or phone.</li>
 <li><b>Sort</b> with the drop-down, or click a column heading (Report no., Test date, Client, Status, Next step). Click again to reverse.</li>
-<li><b>Filter by status</b> with the buttons: Sample taken, Report delivered, Quote sent, Won, Lost. Each shows its count.</li>
+<li><b>Filter by status</b> with the buttons. The particle count report uses Sample taken / Report delivered / Quote sent / Won / Lost; the service forms use Draft / Scheduled / In progress / Completed / Report sent. Only the ones you actually use are shown. Each button shows its count.</li>
 <li>A <b style="color:#b3261e">red next-step date</b> means it's overdue and the lead isn't closed.</li>
 <li>Click any row (or <b>Open</b>) to open that report and edit it. Changes save automatically.</li>
 <li><b>Delete</b> needs two taps: Delete, then Confirm delete. Tap <b>Undo</b> in the message at the bottom within 10 seconds to bring it back; after that, only a backup can.</li>
-<li><b>Export to Excel (CSV)</b> gives you every record with all plant details in one sheet.</li>
+<li><b>Export to Excel (CSV)</b> gives you every record in one sheet: the plant details for the particle count survey, and a set of columns for each other form. Pictures are marked <i>[picture attached]</i> rather than pasted in.</li>
 <li><b>Backup file</b> saves every record in one file. <b>Restore / import</b> reads such a file back (see section 6).</li>
 <li>Press <kbd>Esc</kbd> or <b>Back to report</b> to return.</li>
 </ul>
 
-<h2 id="data">5. Where data is saved and backups</h2>
+<h2 id="data">8. Where data is saved and backups</h2>
 <table>
 <tr><th>What</th><th>Where</th></tr>
 <tr><td>All records (the database)</td><td><code>data\pps_records.db</code> inside the app folder</td></tr>
@@ -134,7 +174,7 @@ On Windows, on the first install screen, <b>tick "Add python.exe to PATH"</b> be
 <h3>Moving to another computer</h3>
 <p>Copy the whole app folder (including <code>data</code>), install Python on the new computer, and start as usual.</p>
 
-<h2 id="phone">6. Phone and laptop together</h2>
+<h2 id="phone">9. Phone and laptop together</h2>
 <h3>Option A: the phone uses the laptop's database (same Wi-Fi)</h3>
 <p>Works only while the laptop is on and running the app, and both are on the <b>same Wi-Fi</b>.</p>
 <ol>
@@ -153,7 +193,7 @@ On Windows, on the first install screen, <b>tick "Add python.exe to PATH"</b> be
 <p>It works the other way too (laptop backup → import on the phone).</p>
 <div class="box warn">Report numbers are counted on each device separately. If you make reports on both the phone and the laptop in the same week, import first, then start new reports, so the numbers don't repeat. The app warns you when a number is already used.</div>
 
-<h2 id="terms">7. What the numbers mean</h2>
+<h2 id="terms">10. What the numbers mean</h2>
 <ul>
 <li><b>Before / After:</b> Before is the oil as you found it. After is the same machine re-tested once PPS filtration is done. For a free test, fill Before only.</li>
 <li><b>Counts are cumulative.</b> The ≥14 µm count includes every particle 14 µm and bigger, so it already contains the ≥21 µm particles. The ≥21 count can never be higher than ≥14. If the app warns about this, you mistyped.</li>
@@ -163,7 +203,7 @@ On Windows, on the first install screen, <b>tick "Add python.exe to PATH"</b> be
 <li><b>Target NAS</b> is an approximate conversion from the ISO target. Follow the OEM manual where you have it.</li>
 </ul>
 
-<h2 id="trouble">8. Problems and fixes</h2>
+<h2 id="trouble">11. Problems and fixes</h2>
 <div class="tbl"><table>
 <tr><th>What you see</th><th>What to do</th></tr>
 <tr><td>"python is not recognized" or start.bat says Python is not installed</td><td>Install Python again and tick <b>Add python.exe to PATH</b>. Restart the computer.</td></tr>

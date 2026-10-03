@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Browser tests: iPhone (WebKit) and laptop (Chromium)",
   "scripts": {
-    "test": "node journey.mjs && node outage.mjs"
+    "test": "node journey.mjs && node outage.mjs && node forms.mjs"
   },
   "devDependencies": {
     "playwright": "^1.55.0"

@@ -1,11 +1,16 @@
-/* PPS Particle Count – offline support for the hosted app (GitHub Pages / iPhone home screen).
+/* PPS Field Report Creator – offline support for the hosted app (GitHub Pages / iPhone home screen).
    The deploy workflow replaces __BUILD__ with the commit id, so every release refreshes the cache.
    If you publish some other way, change VERSION when you change any file. */
-const VERSION = '2.0.0';
+const VERSION = '3.0.0';
 const CACHE = 'ppspc-' + VERSION + '-__BUILD__';
 const ASSETS = [
   './', 'index.html', 'manual.html', 'manifest.webmanifest', 'logo.png',
   'js/calc.js', 'js/store.js', 'js/app.js',
+  'js/reports/registry.js', 'js/reports/sheet.js', 'js/reports/form.js',
+  'js/reports/sig.js', 'js/reports/photo.js',
+  'js/reports/particle.js', 'js/reports/crackle.js', 'js/reports/elcCommissioning.js',
+  'js/reports/elcPurity.js', 'js/reports/lvdh.js', 'js/reports/phe.js',
+  'js/reports/fieldService.js', 'js/reports/oilPatch.js',
   'lib/html2canvas.min.js', 'lib/jspdf.umd.min.js',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'
 ];

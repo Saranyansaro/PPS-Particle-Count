@@ -24,6 +24,8 @@ jobs:
           node-version: 22
       - name: Calculation tests
         run: node --test tests/calc.test.js
+      - name: Report form tests (all eight forms draw, escape and stay in step)
+        run: node --test tests/reports.test.mjs
       - uses: actions/setup-python@v7
         with:
           python-version: "3.9"
@@ -52,6 +54,9 @@ jobs:
       - name: Laptop server outage while typing
         working-directory: tests/e2e
         run: node outage.mjs
+      - name: Every report form: fill, sign by hand, photo, PDF
+        working-directory: tests/e2e
+        run: node forms.mjs
 
   deploy:
     needs: test

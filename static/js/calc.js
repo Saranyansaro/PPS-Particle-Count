@@ -26,6 +26,8 @@
     ['moist', 'Moisture removal recommended (PPS LVDH)'], ['change', 'Oil change recommended'],
     ['source', 'Check contamination source (breathers / seals / ingress)'], ['retest', 'Re-test after ___ days']];
   const STATUSES = ['Sample taken', 'Report delivered', 'Quote sent', 'Won', 'Lost'];
+  /* The service reports (commissioning, LVDH, PHE, field service…) move through a job, not a sale. */
+  const SERVICE_STATUSES = ['Draft', 'Scheduled', 'In progress', 'Completed', 'Report sent'];
 
   /* A number typed by a person: '' -> null, '1,23,456' -> 123456, '12.5' -> 12.5, 'abc' -> NaN */
   function num(v) {
@@ -285,7 +287,7 @@
     return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
-  return { ISO_UP, TARGETS, SIZES, RECS, STATUSES, num, isoCode, codeTxt, targetCode, above, asClass, derive,
+  return { ISO_UP, TARGETS, SIZES, RECS, STATUSES, SERVICE_STATUSES, num, isoCode, codeTxt, targetCode, above, asClass, derive,
     nasClass, reductionPct, suggestedRecs, suggestedDays, fmtRatio, fmtNum, isoStr, compName, draftObs, warnings,
     today, stamp, fy, dmy, nextReportNo, reportKey, validId, cmp, mergeAction, parseBackup, csvCell };
 });

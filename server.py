@@ -30,13 +30,13 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 APP_ID = "pps-pc"
-VERSION = "2.0.0"
+VERSION = "3.0.0"
 PORT = 8765
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(BASE, "static")
 KEEP_BACKUPS = 60
-MAX_BODY = 2 * 1024 * 1024          # one record or the settings
-MAX_IMPORT = 50 * 1024 * 1024       # a whole backup file
+MAX_BODY = 12 * 1024 * 1024         # one record (a service report can carry photographs) or the settings
+MAX_IMPORT = 200 * 1024 * 1024      # a whole backup file
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 IPV4_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 LOOPBACK = ("127.0.0.1", "::1", "::ffff:127.0.0.1")
@@ -50,6 +50,19 @@ for ext, kind in ((".js", "text/javascript"), (".mjs", "text/javascript"), (".cs
 LOCK = threading.Lock()
 DATA = DB_PATH = BACKUPS = ""
 LAN_KEY = ""   # set in --lan mode; phones must present it, this computer never needs it
+
+# Which keys of a record hold its number, customer and date, per report form.
+# (The app knows this too, in static/js/reports/registry.js; keep the two in step.)
+LIST_FIELDS = {
+    "particle": ("reportNo", "client", "testDate"),
+    "crackle": ("reportNo", "client", "reportDate"),
+    "elcComm": ("reportNo", "company", "date"),
+    "elcPurity": ("reportNo", "client", "date"),
+    "lvdh": ("reportNo", "client", "date"),
+    "phe": ("reportNo", "customer", "visitDate"),
+    "fieldService": ("reportNo", "customer", "visitDate"),
+    "oilPatch": ("reportNo", "client", "date"),
+}
 
 
 def set_data_dir(path):
@@ -87,11 +100,18 @@ def init_db():
         con.execute(
             """CREATE TABLE IF NOT EXISTS records (
                 id TEXT PRIMARY KEY,
-                report_no TEXT, client TEXT, test_date TEXT, status TEXT,
+                type TEXT, report_no TEXT, client TEXT, test_date TEXT, status TEXT,
                 next_date TEXT, created_at TEXT, updated_at TEXT, data TEXT NOT NULL)"""
         )
         con.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
         con.execute("CREATE INDEX IF NOT EXISTS records_updated ON records(updated_at)")
+        con.execute("CREATE INDEX IF NOT EXISTS records_type ON records(type)")
+        # Databases made before the service reports were added have no "type" column:
+        # those records are all particle counts.
+        cols = {r["name"] for r in con.execute("PRAGMA table_info(records)").fetchall()}
+        if "type" not in cols:
+            con.execute("ALTER TABLE records ADD COLUMN type TEXT")
+            con.execute("UPDATE records SET type='particle' WHERE type IS NULL OR type=''")
 
 
 def copy_db(src_path, dst_path):
@@ -152,13 +172,17 @@ def upsert(con, rec, created, updated):
         v = rec.get(k, "")
         return v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
 
+    # Each report form names its columns differently; these are copied into real columns so the
+    # database stays readable with any SQLite tool. Everything else lives in the JSON blob.
+    kind = rec.get("type") if isinstance(rec.get("type"), str) else ""
+    no_k, client_k, date_k = LIST_FIELDS.get(kind, ("reportNo", "client", "testDate"))
     con.execute(
-        """INSERT INTO records (id, report_no, client, test_date, status, next_date, created_at, updated_at, data)
-           VALUES (?,?,?,?,?,?,?,?,?)
-           ON CONFLICT(id) DO UPDATE SET report_no=excluded.report_no, client=excluded.client,
+        """INSERT INTO records (id, type, report_no, client, test_date, status, next_date, created_at, updated_at, data)
+           VALUES (?,?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(id) DO UPDATE SET type=excluded.type, report_no=excluded.report_no, client=excluded.client,
            test_date=excluded.test_date, status=excluded.status, next_date=excluded.next_date,
            created_at=excluded.created_at, updated_at=excluded.updated_at, data=excluded.data""",
-        (rec["id"], text("reportNo"), text("client"), text("testDate"), text("status"), text("nextDate"),
+        (rec["id"], kind or "particle", text(no_k), text(client_k), text(date_k), text("status"), text("nextDate"),
          created, updated, json.dumps(rec, ensure_ascii=False)),
     )
 

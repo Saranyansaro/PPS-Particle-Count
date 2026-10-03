@@ -1,12 +1,20 @@
-/* PPS Particle Count – the app screen.
-   Calculation rules live in calc.js, saving and loading in store.js. */
+/* PPS Field Report Creator – the app screen.
+   Calculation rules live in calc.js, saving and loading in store.js,
+   and each report form lives in reports/ (see reports/registry.js). */
 (function () {
   'use strict';
   const C = window.PPSCalc;
-  const { SIZES, RECS, TARGETS, STATUSES, codeTxt, derive, fmtRatio, fmtNum, isoStr, dmy, today, cmp } = C;
+  const { SIZES, RECS, TARGETS, STATUSES, SERVICE_STATUSES, codeTxt, derive, fmtRatio, fmtNum, isoStr, dmy, today, cmp } = C;
   const $ = id => document.getElementById(id);
   const LOGO = 'logo.png';
   const clone = o => JSON.parse(JSON.stringify(o));
+  const R = window.PPSReports, Sh = window.PPSSheet, F = window.PPSForm;
+  const Sig = window.PPSSig, Photo = window.PPSPhoto;
+  /* Each report template brings its own styling, always under its own class prefix. */
+  $('reportCss').textContent = R.all().map(d => d.css || '').join('\n');
+  const pageWidth = () => ($('report').classList.contains('landscape') ? 1123 : 794);
+  /* Image and signature data URLs are big: they are kept out of the crash-safety journal. */
+  const isPic = v => typeof v === 'string' && v.slice(0, 11) === 'data:image/';
   const TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) ||
     /iPad|iPhone|iPod|Android/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const phone = () => window.matchMedia && matchMedia('(max-width: 900px)').matches;
@@ -51,25 +59,30 @@
   const KEEP_KEYS = ['testedBy', 'counter', 'counterSr', 'calDate', 'iso11171', 'analysedBy'];
   const KEEP_DEFAULTS = { testedBy: '', counter: 'OPCOM2 (Ferrocare)', counterSr: '', calDate: '', iso11171: true, analysedBy: '' };
   const pickKeep = o => { const r = {}; KEEP_KEYS.forEach(k => { if (o && o[k] !== undefined) r[k] = o[k]; }); return r; };
+  /* Settings hold the remembered field values plus "my signature". The signature is far too big
+     to copy into every new report, so it is kept out of KEEP_KEYS and travels only in a backup. */
+  const SETTING_KEYS = [...KEEP_KEYS, 'mySignature'];
+  const SETTINGS_DEFAULTS = Object.assign({ mySignature: '' }, KEEP_DEFAULTS);
+  const pickSettings = o => { const r = {}; SETTING_KEYS.forEach(k => { if (o && o[k] !== undefined) r[k] = o[k]; }); return r; };
   const newId = () => 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  function blankReport() {
-    return {
-      reportNo: '', sampleDate: today(), testDate: today(), client: '', address: '', equipment: '', sampleId: '', oilGrade: '', oilQty: '', hours: '', samplingPoint: '',
-      testedBy: '', counter: '', counterSr: '', calDate: '', iso11171: true, analysedBy: '',
-      condition: 'clear', mode: 'before',
-      c4B: '', c6B: '', c14B: '', c21B: '', c38B: '', c70B: '', c4A: '', c6A: '', c14A: '', c21A: '', c38A: '', c70A: '',
-      nasB: '', nasA: '', asB: '', asA: '', asT: '', rhB: '', rhA: '', rhT: '',
-      component: 'piston', t4: '17', t6: '15', t14: '13', tNas: '7',
-      recs: {}, recAuto: true, retestManual: false, retestDays: '', obs: '', obsAuto: '', clientSign: '', id: newId(),
-      contactName: '', designation: '', phone: '', email: '', industry: '', leadSource: '', machineMake: '', totalPacks: '', totalOil: '',
-      changeInterval: '', lastChange: '', oilSpend: '', filtration: '', problems: '', decisionMaker: '', status: 'Sample taken', nextDate: '', nextStep: ''
-    };
-  }
-  const BLANK = blankReport();
+  /* Which report kind a record is: anything unknown is an old particle-count record. */
+  const reportOf = rec => R.of(rec) || R.get('particle');
+  const blankReport = type => (R.get(type) || R.get('particle')).blank();
+  const BLANK = blankReport('particle');
   /* Fill any fields an older or imported record lacks, so the screen never shows "undefined" */
   function normalise(rec) {
     const src = clone(rec || {});
-    const r = Object.assign(blankReport(), src);
+    const def = reportOf(src);
+    const base = blankReport(def.id);
+    const r = Object.assign({}, base, src);
+    r.type = def.id;
+    if (!C.validId(r.id)) r.id = newId();
+    Object.keys(base).forEach(k => {
+      if (r[k] === undefined || r[k] === null) r[k] = typeof base[k] === 'boolean' ? false : '';
+      else if (typeof base[k] === 'boolean') r[k] = !!r[k];
+      else if (typeof r[k] !== 'string' && typeof base[k] === 'string') r[k] = String(r[k]);
+    });
+    if (def.id !== 'particle') return r;
     if (!r.recs || typeof r.recs !== 'object' || Array.isArray(r.recs)) r.recs = {};
     if (!TARGETS[r.component]) r.component = 'oem';
     if (r.mode !== 'after') r.mode = 'before';
@@ -77,14 +90,17 @@
     if (src.retestManual === undefined) r.retestManual = !r.recAuto && String(r.retestDays || '').trim() !== '';
     return r;
   }
-  const hasContent = r => !!r && String(r.client || '').trim() !== '';
+  const summaryOf = r => R.listing(r);
+  const hasContent = r => !!r && String(summaryOf(r).client || '').trim() !== '';
+  /* Every form names the customer differently: company, customer or client. */
+  const needName = () => (S && reportOf(S).id === 'particle' ? 'Add client name to save' : 'Add a customer name to save');
   /* A report is stored once it has a client name; one that was stored keeps saving even if the name is cleared */
   const canSave = r => hasContent(r) || (!!r && RECORDS.some(x => x.id === r.id));
 
   /* ---------- state ---------- */
   let store = null;            // where records are kept (store.js)
   let RECORDS = [];            // every saved record
-  let SETTINGS = Object.assign({}, KEEP_DEFAULTS);
+  let SETTINGS = Object.assign({}, SETTINGS_DEFAULTS);
   let S = null;                // the report on screen
   let serverOk = true, needKey = false;
   let editRev = 0, savedRev = 0, queued = { id: null, rev: -1 };
@@ -106,10 +122,37 @@
   const DRAFT_LABEL = 'Write observations from the results';
   $('pdfBtn').textContent = PDF_LABEL;
   $('bkBtn').href = 'api/backup' + (KEY ? '?key=' + encodeURIComponent(KEY) : '');
+  $('pkGrid').innerHTML = R.all().map(d => `<button type="button" class="pickcard" data-type="${esc(d.id)}">
+    <span class="fm">${d.form ? 'Form ' + esc(d.form) : 'PPS service form'}</span>
+    <b>${esc(d.name)}</b>
+    <small>${esc(d.about || d.title || '')}</small></button>`).join('');
+  document.querySelectorAll('#pkGrid .pickcard').forEach(b => {
+    b.onclick = async () => { if (await startNew(b.dataset.type)) status('New ' + R.get(b.dataset.type).short + ' report started.'); };
+  });
+  /* My signature is remembered in settings so the same hand can be placed on any report. */
+  Sig.useSaved(() => SETTINGS.mySignature || '', v => {
+    SETTINGS.mySignature = v || '';
+    settingsDirty.add('mySignature');     // saveSettings only writes keys marked as changed
+    saveSettings();
+  });
+  /* The entry screen of the open report kind (the particle one is written in index.html). */
+  let builtType = null;
+  function ensureForm(def) {
+    if (def.ownForm) return;
+    if (builtType === def.id) return;
+    $('formGeneric').innerHTML = F.build(def);
+    builtType = def.id;
+  }
 
   /* ---------- render ---------- */
   function render() {
     if (!S) return;
+    const def = reportOf(S);
+    $('formParticle').hidden = !def.ownForm;
+    $('formGeneric').hidden = !!def.ownForm;
+    $('barType').textContent = def.short + (def.form ? ' · ' + def.form : '');
+    $('report').classList.toggle('landscape', def.orientation === 'l');
+    if (!def.ownForm) { renderGeneric(def); return; }
     const D = derive(S);
     $('resWrap').classList.toggle('mode-after', D.after);
     document.querySelectorAll('.col-after-f').forEach(e => { e.style.display = D.after ? '' : 'none'; });
@@ -152,6 +195,17 @@
     $('noWarn').textContent = no && RECORDS.some(r => r.id !== S.id && String(r.reportNo || '').trim() === no) ? 'Another saved report already has this number.' : '';
 
     $('report').innerHTML = reportHTML(S, D);
+    fitPreview();
+  }
+
+  /* Any report whose entry screen is described by its own field list. */
+  function renderGeneric(def) {
+    document.title = [S.reportNo, summaryOf(S).client].filter(Boolean).join(' – ') + ' | ' + def.name;
+    try {
+      $('report').innerHTML = def.render(S);
+    } catch (e) {
+      $('report').innerHTML = `<p style="padding:20px;font-size:13px">This report could not be drawn (${esc(e && e.message)}). Please tell Prime Power Systems.</p>`;
+    }
     fitPreview();
   }
 
@@ -242,9 +296,9 @@
     if (!pane.offsetWidth) return;
     const cs = getComputedStyle(pane);
     const avail = pane.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    const s = zoomed && phone() ? 1 : Math.max(0.1, Math.min(1, avail / 794));
+    const s = zoomed && phone() ? 1 : Math.max(0.1, Math.min(1, avail / pageWidth()));
     page.style.transform = `scale(${s})`;
-    wrap.style.width = (794 * s) + 'px';
+    wrap.style.width = (pageWidth() * s) + 'px';
     wrap.style.height = (page.offsetHeight * s) + 'px';
   }
   if ('ResizeObserver' in window) new ResizeObserver(() => fitPreview()).observe($('previewPane'));
@@ -267,13 +321,28 @@
       : 'Can\'t reach the app server on the laptop, so changes are kept on this screen only. Start it again (double-click <b>start.bat</b> or run <b>python server.py</b>). Your typing is kept and saves by itself when the server is back.';
     $('downBar').hidden = ok || !store || store.kind !== 'server';
   }
-  /* A copy of the open report in this browser, so nothing typed is lost if the phone kills the app */
-  function journal(dirty) { LS.set('ppspc.draft', { rec: S, dirty, base: baseRevs }); }
+  /* A copy of the open report in this browser, so nothing typed is lost if the phone kills the app.
+     Pictures and signatures are far too big to rewrite on every keystroke, so they are kept
+     under their own key and only rewritten when one of them actually changes. */
+  let lastPics = null;
+  function journal(dirty) {
+    const rec = clone(S), pics = {};
+    Object.keys(rec).forEach(k => { if (isPic(rec[k])) { pics[k] = rec[k]; delete rec[k]; } });
+    const json = JSON.stringify(pics);
+    try {
+      LS.set('ppspc.draft', { rec, dirty, base: baseRevs, pics: Object.keys(pics).length > 0 });
+      if (json !== lastPics) { LS.set('ppspc.draft.pics', pics); lastPics = json; }
+    } catch (e) {
+      /* Out of room: keep the typing safe and tell the user once. */
+      try { LS.set('ppspc.draft', { rec, dirty, base: baseRevs, pics: false }); } catch (e2) { /* give up quietly */ }
+      if (!journal.warned) { journal.warned = true; status('This device is short of space, so pictures may not be kept if the app closes. Save a backup and remove old reports.'); }
+    }
+  }
 
   function persist() {
     editRev++;
     journal(true);
-    if (!canSave(S)) { setSaveState('Add client name to save'); return; }
+    if (!canSave(S)) { setSaveState(needName()); return; }
     if (conflict) { setSaveState('Not saved', true); return; }
     setSaveState('Saving…');
     clearTimeout(saveTimer); saveTimer = setTimeout(() => saveNow(), 600);
@@ -409,7 +478,9 @@
 
   /* ---------- form input ---------- */
   function loadInputs() {
-    document.querySelectorAll('[data-k]').forEach(el => {
+    if (!S) return;
+    ensureForm(reportOf(S));
+    document.querySelectorAll('#form [data-k]').forEach(el => {
       const k = el.dataset.k, v = S[k];
       if (el.type === 'radio') el.checked = v === el.value;
       else if (el.type === 'checkbox') el.checked = !!v;
@@ -421,9 +492,47 @@
         el.value = val;
       }
     });
+    F.sync($('formGeneric'), S);
     prevComp = TARGETS[S.component] && TARGETS[S.component].iso ? S.component : null;
     $('undoObs').hidden = true; obsUndo = null;
   }
+  /* Signature and photo slots are not <input>s: they are handled here. */
+  $('form').addEventListener('click', async e => {
+    const el = e.target.closest('[data-sig],[data-sigclear],[data-img],[data-imgclear]');
+    if (!el || !S) return;
+    const openSig = el.dataset.sig, clearSig = el.dataset.sigclear;
+    const openImg = el.dataset.img, clearImg = el.dataset.imgclear;
+    if (clearSig) {
+      S[clearSig] = ''; F.sync($('formGeneric'), S); render(); persist(); return;
+    }
+    if (clearImg) {
+      S[clearImg] = ''; F.sync($('formGeneric'), S); render(); persist(); return;
+    }
+    if (openSig) {
+      const fld = el.closest('.fld'), lab = fld && fld.querySelector('.fl');
+      Sig.open({
+        title: lab ? lab.textContent.replace(/\s*—.*$/, '') : 'Sign here',
+        value: S[openSig] || '',
+        onDone: (data, opt) => {
+          S[openSig] = data;
+          if (opt && opt.remember) Sig.remember(data);
+          loadInputs(); render(); persist();
+        }
+      });
+      return;
+    }
+    if (openImg) {
+      try {
+        const data = await Photo.pick(el.dataset.img);
+        const total = Object.keys(S).reduce((n, k) => n + (isPic(S[k]) ? S[k].length : 0), 0) + data.length;
+        if (total > 3.2e6 && !confirm('This report is getting large (about ' + Math.round(total / 1e6 * 0.75) + ' MB of pictures).\n\nLarge reports are slower to save, back up and send. Add it anyway?')) return;
+        S[openImg] = data;
+        loadInputs(); render(); persist();
+      } catch (err) {
+        if (err && err.message && err.message !== 'no file') status(err.message);
+      }
+    }
+  });
   const setField = (k, v) => { S[k] = v; const el = document.querySelector(`[data-k="${k}"]`); if (el) el.value = v; };
   function onField(e) {
     if (!S) return;
@@ -513,19 +622,21 @@
     render(); persist();
   };
 
-  /* ---------- views: Enter / Report / Records ---------- */
+  /* ---------- views: Enter / Report / Records / New ---------- */
   let lastMainView = 'form', curView = 'form';
   const scrollPos = {};
   function setView(v) {
     if (phone()) scrollPos[curView] = window.scrollY;
     if (zoomed && v !== 'preview') $('zoomBtn').click();
-    const rec = v === 'records';
+    const rec = v === 'records', pick = v === 'pick';
     $('recView').hidden = !rec;
+    $('pickView').hidden = !pick;
     document.body.classList.toggle('show-rec', rec);
-    if (!rec) { lastMainView = v; $('main').dataset.view = v; }
+    document.body.classList.toggle('show-pick', pick);
+    if (!rec && !pick) { lastMainView = v; $('main').dataset.view = v; }
     curView = v;
     document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.view === v)));
-    if (rec) renderRecords(); else requestAnimationFrame(fitPreview);
+    if (rec) renderRecords(); else if (!pick) requestAnimationFrame(fitPreview);
     if (phone()) window.scrollTo(0, scrollPos[v] || 0);
   }
   function toFormTop() {
@@ -533,6 +644,13 @@
     if (phone()) window.scrollTo(0, 0); else $('form').scrollTop = 0;
   }
   document.querySelectorAll('.tab').forEach(b => { b.onclick = () => (b.dataset.view === 'records' ? openRecordsView() : setView(b.dataset.view)); });
+  $('pkClose').onclick = () => setView(lastMainView);
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (Sig.isOpen()) return;
+    if (!$('pickView').hidden) setView(lastMainView);
+    else if (!$('recView').hidden) setView(lastMainView);
+  });
   async function refreshRecords() {
     try { RECORDS = await store.list(); if (store.kind === 'server') setServer(true); updateCount(); }
     catch (e) { if (store.kind === 'server') setServer(false, e && e.status === 401); }
@@ -547,23 +665,34 @@
   }
   $('recBtn').onclick = openRecordsView;
   $('rvClose').onclick = () => setView(lastMainView);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('recView').hidden) setView(lastMainView); });
 
   /* ---------- open / new ---------- */
   function show(rec, fresh, keepView) {
     S = rec; editRev = 0; savedRev = 0; queued = { id: null, rev: -1 };
     baseRevs = [S.rev == null ? null : S.rev];
     clearConflict();
-    LS.set('ppspc.currentId', S.id); LS.del('ppspc.draft');
+    LS.set('ppspc.currentId', S.id); LS.set('ppspc.lastType', reportOf(S).id); LS.del('ppspc.draft');
+    builtType = null;                       // the next kind of report builds its own entry screen
     loadInputs(); render();
-    setSaveState(fresh ? 'Add client name to save' : 'Saved ✓');
+    setSaveState(fresh ? needName() : 'Saved ✓');
     if (!keepView) { setView('form'); toFormTop(); }
   }
-  function newReport() {
-    const r = Object.assign(blankReport(), KEEP_DEFAULTS, pickKeep(SETTINGS));
+  function newReport(type, keepType) {
+    const id = R.get(type) ? type : (keepType && S ? reportOf(S).id : 'particle');
+    const def = R.get(id);
+    const r = normalise(Object.assign(blankReport(id), { id: newId(), type: id }));
+    if (def.id === 'particle') Object.assign(r, KEEP_DEFAULTS, pickKeep(SETTINGS));
     r.reportNo = C.nextReportNo(RECORDS, null);
     autoNo = true;
     show(r, true);
+    return def;
+  }
+  /* Open the chooser, or go straight to a report kind the caller already knows. */
+  async function chooseReport(type) {
+    if (type) { newReport(type); return true; }
+    if (!(await leaveCurrent())) return false;
+    setView('pick');
+    return false;
   }
   /* Before leaving the open report, make sure it is stored */
   async function leaveCurrent() {
@@ -585,11 +714,11 @@
     autoNo = false;
     show(normalise(rec), false);
   }
-  async function startNew() {
+  async function startNew(type) {
     if (!(await leaveCurrent())) return false;
-    newReport();
-    if (!TOUCH) { const c = document.querySelector('[data-k="client"]'); c && c.focus(); }
-    return true;
+    const def = newReport(type, true);
+    if (!TOUCH) { const c = document.querySelector('#formParticle [data-k="client"], #formGeneric [data-k="client"], #formGeneric [data-k="customer"], #formGeneric [data-k="company"]'); c && c.focus(); }
+    return def;
   }
   let armTimer = null; const newBtn = $('newBtn');
   function disarmNew() { clearTimeout(armTimer); newBtn.classList.remove('warn'); newBtn.textContent = 'New report'; }
@@ -604,7 +733,7 @@
     }
     disarmNew();
     const saved = canSave(S);
-    if (await startNew()) status(saved ? 'Current report saved. New report started.' : 'New report started.');
+    if (await chooseReport()) status(saved ? 'Current report saved. New report started.' : 'New report started.');
   };
 
   /* ---------- records view ---------- */
@@ -620,6 +749,7 @@
     };
   });
   function summary(r) {
+    if (reportOf(r).id !== 'particle') return {};
     const D = derive(Object.assign({}, BLANK, r));
     return {
       iso: isoStr(D.cB), after: r.mode === 'after' ? isoStr(D.cA) : '',
@@ -628,25 +758,30 @@
       fails: D.fails.filter(f => f.std !== 'ISO 4406').map(f => f.std.replace('Water saturation', 'Water')).join(', ')
     };
   }
+  const rdate = r => summaryOf(r).date || '';
+  const rno = r => summaryOf(r).no || '';
+  const rclient = r => String(summaryOf(r).client || '');
   const SORTERS = {
-    'date-desc': (a, b) => cmp(b.testDate || '', a.testDate || '') || cmp(C.reportKey(b.reportNo), C.reportKey(a.reportNo)),
-    'date-asc': (a, b) => cmp(a.testDate || '', b.testDate || '') || cmp(C.reportKey(a.reportNo), C.reportKey(b.reportNo)),
-    'client-asc': (a, b) => cmp(String(a.client || '').toLowerCase(), String(b.client || '').toLowerCase()) || cmp(b.testDate || '', a.testDate || ''),
-    'client-desc': (a, b) => cmp(String(b.client || '').toLowerCase(), String(a.client || '').toLowerCase()) || cmp(b.testDate || '', a.testDate || ''),
+    'date-desc': (a, b) => cmp(rdate(b), rdate(a)) || cmp(C.reportKey(rno(b)), C.reportKey(rno(a))),
+    'date-asc': (a, b) => cmp(rdate(a), rdate(b)) || cmp(C.reportKey(rno(a)), C.reportKey(rno(b))),
+    'client-asc': (a, b) => cmp(rclient(a).toLowerCase(), rclient(b).toLowerCase()) || cmp(rdate(b), rdate(a)),
+    'client-desc': (a, b) => cmp(rclient(b).toLowerCase(), rclient(a).toLowerCase()) || cmp(rdate(b), rdate(a)),
     'next-asc': (a, b) => cmp(a.nextDate || '9999', b.nextDate || '9999'),
     'next-desc': (a, b) => cmp(b.nextDate || '', a.nextDate || ''),
-    'status': (a, b) => cmp(STATUSES.indexOf(a.status), STATUSES.indexOf(b.status)) || cmp(b.testDate || '', a.testDate || ''),
-    'no-desc': (a, b) => cmp(C.reportKey(b.reportNo), C.reportKey(a.reportNo)) || cmp(String(b.reportNo || ''), String(a.reportNo || '')),
-    'no-asc': (a, b) => cmp(C.reportKey(a.reportNo), C.reportKey(b.reportNo)) || cmp(String(a.reportNo || ''), String(b.reportNo || ''))
+    'status': (a, b) => cmp(STATUSES.indexOf(a.status), STATUSES.indexOf(b.status)) || cmp(rdate(b), rdate(a)),
+    'no-desc': (a, b) => cmp(C.reportKey(rno(b)), C.reportKey(rno(a))) || cmp(rno(b), rno(a)),
+    'no-asc': (a, b) => cmp(C.reportKey(rno(a)), C.reportKey(rno(b))) || cmp(rno(a), rno(b))
   };
   function renderRecords() {
     const q = $('rvSearch').value.trim().toLowerCase();
-    const counts = { All: RECORDS.length }; STATUSES.forEach(s => { counts[s] = 0; });
+    const ALL = STATUSES.concat(SERVICE_STATUSES);
+    const counts = { All: RECORDS.length }; ALL.forEach(s => { counts[s] = 0; });
     RECORDS.forEach(r => { if (counts[r.status] != null) counts[r.status]++; });
-    $('rvChips').innerHTML = ['All', ...STATUSES].map(s => `<button type="button" class="chip" data-f="${esc(s)}" aria-pressed="${rvFilter === s}">${esc(s)}<span>${counts[s] || 0}</span></button>`).join('');
+    const used = ALL.filter(s => counts[s] > 0 || STATUSES.includes(s));
+    $('rvChips').innerHTML = ['All', ...used].map(s => `<button type="button" class="chip" data-f="${esc(s)}" aria-pressed="${rvFilter === s}">${esc(s)}<span>${counts[s] || 0}</span></button>`).join('');
     $('rvChips').querySelectorAll('.chip').forEach(c => { c.onclick = () => { rvFilter = c.dataset.f; renderRecords(); }; });
     const list = RECORDS.filter(r => (rvFilter === 'All' || r.status === rvFilter) &&
-      (!q || [r.client, r.reportNo, r.equipment, r.contactName, r.industry, r.address, r.phone, r.email, r.sampleId, r.machineMake, r.nextStep, r.oilGrade]
+      (!q || Object.values(summaryOf(r)).concat([r.nextStep, r.address, r.phone, r.email, r.oilGrade])
         .map(x => String(x == null ? '' : x)).join(' ').toLowerCase().includes(q)));
     list.sort(SORTERS[rvSort] || SORTERS['date-desc']);
     const sortKey = rvSort.split('-')[0];
@@ -660,21 +795,29 @@
     const nextHTML = r => (r.nextDate ? `<span class="${r.nextDate < t && !['Won', 'Lost'].includes(r.status) ? 'overdue' : ''}">${esc(dmy(r.nextDate))}</span>` : '');
     const stClass = r => 'st st-' + String(r.status || '').replace(/[^A-Za-z]/g, '');
     const btns = '<button type="button" class="rowbtn" data-act="open">Open</button><button type="button" class="rowbtn del" data-act="del">Delete</button>';
+    const views = list.map(r => [r, summary(r), summaryOf(r)]);
     const pill = v => (v.verdict ? `<span class="pill ${v.verdict}">${v.verdict === 'above' ? 'Above target' : 'Within target'}</span>` : '');
     const isoTxt = v => (v.iso ? 'ISO ' + v.iso + (v.after ? ' → ' + v.after : '') : '');
     const nasTxt = r => (r.nasB ? `NAS ${esc(r.nasB)}${r.mode === 'after' && r.nasA ? ' → ' + esc(r.nasA) : ''}` : '');
     const why = v => (v.ratio ? `${v.ratio}× allowed` : '') + (v.fails ? `${v.ratio ? '; ' : ''}${esc(v.fails)} above` : '');
-    const views = list.map(r => [r, summary(r)]);
-    $('rvBody').innerHTML = views.map(([r, v]) => `<tr data-id="${esc(r.id)}">
-      <td>${esc(r.reportNo)}${r.id === S.id ? '<small>Open now</small>' : ''}</td>
-      <td>${esc(dmy(r.testDate))}</td>
-      <td><b>${esc(r.client)}</b><small>${esc([r.contactName, r.phone].filter(Boolean).join(' · '))}</small></td>
-      <td>${esc(r.equipment)}<small>${esc(r.industry || '')}</small></td>
-      <td>${esc(isoTxt(v))}${nasTxt(r) ? `<small>${nasTxt(r)}</small>` : ''}</td>
-      <td>${pill(v)}${why(v) ? `<small>${why(v)}</small>` : ''}</td>
+    const resultCell = ([r, v, L]) => {
+      if (reportOf(r).id !== 'particle') return `${r.line ? esc(r.line) : esc(L.detail)}`;
+      return `${esc(isoTxt(v))}${nasTxt(r) ? `<small>${nasTxt(r)}</small>` : ''}`;
+    };
+    const verdictCell = ([r, v, L]) => {
+      if (reportOf(r).id !== 'particle') return '';
+      return `${pill(v)}${why(v) ? `<small>${why(v)}</small>` : ''}`;
+    };
+    $('rvBody').innerHTML = views.map(x => { const [r, , L] = x; return `<tr data-id="${esc(r.id)}">
+      <td>${esc(L.no)}${r.id === S.id ? '<small>Open now</small>' : ''}</td>
+      <td>${esc(dmy(L.date))}</td>
+      <td><b>${esc(L.client)}</b><small>${esc([L.type, r.contactName].filter(Boolean).join(' · '))}</small></td>
+      <td>${esc(L.detail)}</td>
+      <td>${resultCell(x)}</td>
+      <td>${verdictCell(x)}</td>
       <td><span class="${stClass(r)}">${esc(r.status || '')}</span></td>
       <td>${nextHTML(r)}<small>${esc(r.nextStep || '')}</small></td>
-      <td style="white-space:nowrap">${btns}</td></tr>`).join('');
+      <td style="white-space:nowrap">${btns}</td></tr>`; }).join('');
     $('rvCards').innerHTML = views.map(([r, v]) => `<li class="card" data-id="${esc(r.id)}">
       <div class="top"><div><b>${esc(r.client || '(no client)')}</b><div class="meta">${esc(r.reportNo)}${r.testDate ? ' · ' + esc(dmy(r.testDate)) : ''}${r.id === S.id ? ' · open now' : ''}</div></div>${pill(v)}</div>
       <div class="mid">${r.equipment ? `<span>${esc(r.equipment)}</span>` : ''}${v.iso ? `<span>${esc(isoTxt(v))}</span>` : ''}${nasTxt(r) ? `<span>${nasTxt(r)}</span>` : ''}${why(v) ? `<span>${why(v)}</span>` : ''}</div>
@@ -766,21 +909,24 @@
   }
   async function makePdf() {
     if (!window.html2canvas || !window.jspdf) throw new Error('PDF library not loaded');
+    const def = reportOf(S);
+    const land = def.orientation === 'l';
     const holder = document.createElement('div');
-    holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;pointer-events:none;';
+    holder.style.cssText = `position:fixed;left:-10000px;top:0;width:${land ? 1123 : 794}px;pointer-events:none;`;
     const page = $('report').cloneNode(true);
     page.removeAttribute('id'); page.style.transform = 'none'; page.style.boxShadow = 'none';
     holder.appendChild(page); document.body.appendChild(holder);
     try {
       await waitImages(page);
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
-      const canvas = await window.html2canvas(page, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true, windowWidth: 1024 });
+      const canvas = await window.html2canvas(page, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true, windowWidth: 1400 });
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p', compress: true });
-      let w = 210, h = canvas.height * 210 / canvas.width, x = 0;
-      if (h > 297) { w = 297 * canvas.width / canvas.height; h = 297; x = (210 - w) / 2; }
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, 0, w, h);
-      pdf.setProperties({ title: 'Oil Analysis Report - Particle Count ' + (S.reportNo || ''), author: 'Prime Power Systems', subject: S.client || '' });
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: land ? 'l' : 'p', compress: true });
+      const pw = land ? 297 : 210, ph = land ? 210 : 297;
+      let w = pw, h = canvas.height * pw / canvas.width, x = 0, y = 0;
+      if (h > ph) { w = ph * canvas.width / canvas.height; h = ph; x = (pw - w) / 2; }
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, w, h);
+      pdf.setProperties({ title: `${def.name} ${S.reportNo || ''}`.trim(), author: 'Prime Power Systems', subject: summaryOf(S).client || '' });
       return pdf.output('blob');
     } finally { holder.remove(); }
   }
@@ -789,8 +935,10 @@
     btn.disabled = true; btn.textContent = 'Making PDF…';
     try {
       saveNow();
+      const def = reportOf(S);
       const blob = await makePdf();
-      const how = await deliverFile(blob, `PPS_ParticleCount_${safeName(S.client) || 'Client'}_${safeName(S.reportNo) || 'Report'}.pdf`, 'Particle count report');
+      const name = `PPS_${def.short.replace(/[^A-Za-z0-9]+/g, '')}_${safeName(summaryOf(S).client) || 'Client'}_${safeName(S.reportNo) || 'Report'}.pdf`;
+      const how = await deliverFile(blob, name, def.name);
       const m = doneMsg(how, 'PDF'); if (m) status(m);
     } catch (e) {
       status('Could not build the PDF. Opening print instead: choose "Save as PDF".');
@@ -808,12 +956,32 @@
     ['Target ISO', x => ([x.t4, x.t6, x.t14].every(t => String(t == null ? '' : t).trim() !== '') ? 'ISO ' + [x.t4, x.t6, x.t14].join('/') : '')],
     ['Critical component', x => (TARGETS[x.component] || {}).label || ''],
     ['Power packs in plant', 'totalPacks'], ['Total oil (L)', 'totalOil'], ['Oil change interval', 'changeInterval'], ['Last oil change', 'lastChange'], ['Yearly oil spend', 'oilSpend'], ['Current filtration', 'filtration'], ['Problems', 'problems'], ['Decision maker', 'decisionMaker'], ['Status', 'status'], ['Next step', 'nextStep'], ['Next step date', 'nextDate'], ['Observations', 'obs']];
+  /* Every other report kind adds its own columns, so one spreadsheet holds all the forms.
+     Labels come from the entry screen; pictures are noted, never pasted in as text. */
+  function extraCsvCols() {
+    const cols = [], seen = new Set();
+    R.all().forEach(def => {
+      if (def.id === 'particle') return;
+      const labels = {};
+      (def.sections || []).forEach(s => (s.fields || []).forEach(f => { if (f.k && f.l) labels[f.k] = f.l; }));
+      const blank = def.blank();
+      const prefix = def.short + ' – ';
+      Object.keys(blank).forEach(k => {
+        if (seen.has(k) || k === 'recs' || k === 'obsAuto' || k === 'type') return;
+        seen.add(k);
+        const label = prefix + (labels[k] || k);
+        cols.push([label, x => (isPic(x[k]) ? (x[k] ? '[picture attached]' : '') : (typeof x[k] === 'boolean' ? (x[k] ? 'Yes' : '') : x[k]))]);
+      });
+    });
+    return cols;
+  }
+  const ALL_CSV_COLS = CSV_COLS.concat(extraCsvCols());
   $('csvBtn').onclick = async () => {
     if (!RECORDS.length) { status('No records to export yet.'); return; }
-    const rows = [...RECORDS].sort((a, b) => cmp(a.testDate || '', b.testDate || ''));
-    const csv = '﻿' + [CSV_COLS.map(c => C.csvCell(c[0])).join(','),
-      ...rows.map(x => CSV_COLS.map(([, f]) => C.csvCell(typeof f === 'function' ? f(x) : x[f])).join(','))].join('\r\n');
-    const how = await deliverFile(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `PPS_plant_records_${today()}.csv`, 'PPS plant records');
+    const rows = [...RECORDS].sort((a, b) => cmp(summaryOf(a).date || '', summaryOf(b).date || ''));
+    const csv = '\ufeff' + [ALL_CSV_COLS.map(c => C.csvCell(c[0])).join(','),
+      ...rows.map(x => ALL_CSV_COLS.map(([, f]) => C.csvCell(typeof f === 'function' ? f(x) : x[f])).join(','))].join('\r\n');
+    const how = await deliverFile(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `PPS_records_${today()}.csv`, 'PPS records');
     const m = doneMsg(how, 'CSV'); if (m) status(m + ' Open it in Excel.');
   };
 
@@ -822,7 +990,7 @@
     await saveNow();
     try {
       const [records, settings] = await Promise.all([store.list(), store.settings()]);
-      const data = { app: 'PPS Particle Count Report', format: 1, exportedAt: C.stamp(), from: store.kind, records, settings: pickKeep(settings) };
+      const data = { app: 'PPS Field Report Creator', format: 1, exportedAt: C.stamp(), from: store.kind, records, settings: pickSettings(settings) };
       const how = await deliverFile(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }), `PPS_backup_${today()}_${records.length}rec.json`, 'PPS records backup');
       if (how !== 'cancelled') { LS.set('ppspc.lastBackup', today()); updateNag(); }
       const m = doneMsg(how, 'Backup'); if (m) status(m);
@@ -839,9 +1007,9 @@
       try {
         const data = C.parseBackup(String(rd.result || ''));
         if (!(await leaveCurrent())) return;
-        const res = await store.importData({ records: data.records, settings: pickKeep(data.settings) });
+        const res = await store.importData({ records: data.records, settings: pickSettings(data.settings) });
         await refreshRecords();
-        try { SETTINGS = Object.assign({}, KEEP_DEFAULTS, pickKeep(await store.settings())); } catch (x) { /* keep current */ }
+        try { SETTINGS = Object.assign({}, SETTINGS_DEFAULTS, pickSettings(await store.settings())); } catch (x) { /* keep current */ }
         // if the open report was replaced by a newer copy, show the newer copy
         const fresh = RECORDS.find(r => r.id === S.id);
         if (fresh && !isDirty() && String(fresh.updatedAt || '') > String(S.updatedAt || '')) show(normalise(fresh), false, true);
@@ -887,7 +1055,7 @@
       const [recs, settings] = await Promise.all([store.list(), store.settings()]);
       RECORDS = recs;
       const mine = {}; settingsDirty.forEach(k => { mine[k] = SETTINGS[k]; });
-      SETTINGS = Object.assign({}, KEEP_DEFAULTS, pickKeep(settings), mine);
+      SETTINGS = Object.assign({}, SETTINGS_DEFAULTS, pickSettings(settings), mine);
       updateCount();
     } catch (e) { setServer(false, e && e.status === 401); return; }
     const taken = no => RECORDS.some(r => r.id !== S.id && String(r.reportNo || '').trim() === String(no || '').trim());
@@ -940,7 +1108,7 @@
     if (picked.online) {
       try {
         const [recs, settings] = await Promise.all([store.list(), store.settings()]);
-        RECORDS = recs; SETTINGS = Object.assign({}, KEEP_DEFAULTS, pickKeep(settings)); setServer(true);
+        RECORDS = recs; SETTINGS = Object.assign({}, SETTINGS_DEFAULTS, pickSettings(settings)); setServer(true);
       } catch (e) { setServer(false, e && e.status === 401); }
     } else setServer(false, picked.needKey);
 
@@ -948,20 +1116,25 @@
     const cur = LS.get('ppspc.currentId', null);
     const rec = cur && RECORDS.find(r => r.id === cur);
     if (draft && draft.dirty && draft.rec && typeof draft.rec === 'object' && C.validId(draft.rec.id)) {
+      /* pictures and signatures travel in their own key, so typing stays fast */
+      if (draft.pics) Object.assign(draft.rec, LS.get('ppspc.draft.pics', {}) || {});
       S = normalise(draft.rec); editRev = 1; savedRev = 0;
       baseRevs = Array.isArray(draft.base) ? draft.base : [S.rev == null ? null : S.rev];
       loadInputs(); render();
       if (canSave(S)) { setSaveState('Saving…'); saveNow(); status('Unsaved changes were recovered.'); }
-      else setSaveState('Add client name to save');
+      else setSaveState('Add ' + (reportOf(S).id === 'particle' ? 'client name' : 'a customer name') + ' to save');
     } else if (rec) {
       S = normalise(rec); baseRevs = [S.rev == null ? null : S.rev];
       loadInputs(); render(); setSaveState('Saved ✓');
     } else {
-      S = Object.assign(blankReport(), KEEP_DEFAULTS, pickKeep(SETTINGS));
+      const lastType = LS.get('ppspc.lastType', 'particle');
+      S = normalise(Object.assign(blankReport(lastType), { id: newId(), type: lastType }));
+      if (reportOf(S).id === 'particle') Object.assign(S, KEEP_DEFAULTS, pickKeep(SETTINGS));
       S.reportNo = C.nextReportNo(RECORDS, null); autoNo = true;
-      loadInputs(); render(); setSaveState('Add client name to save');
+      loadInputs(); render(); setSaveState('Add a customer name to save');
     }
     LS.set('ppspc.currentId', S.id);
+    LS.set('ppspc.lastType', reportOf(S).id);
     updateCount(); setView('form'); updateNag();
     document.body.classList.remove('booting');
 
