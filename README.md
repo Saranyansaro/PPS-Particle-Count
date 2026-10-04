@@ -82,9 +82,10 @@ Membrane patches, crackle-test plates and sample photos attach straight from the
 | `static/sw.js`, `static/manifest.webmanifest`, `static/icons/` | Offline support and home-screen app |
 | `static/lib/` | PDF libraries (html2canvas 1.4.1, jsPDF), bundled so it works offline |
 | `server.py` | Local server and SQLite database (Python standard library only) |
-| `tests/` | `node --test tests/calc.test.js tests/reports.test.mjs` and `python -m unittest discover -s tests` |
+| `tests/` | `node --test tests/calc.test.js tests/reports.test.mjs tests/workflow.test.mjs` and `python -m unittest discover -s tests` |
 | `tests/render.mjs` | Draws any report sheet outside the browser: `node tests/render.mjs <id>` / `--list` |
 | `tests/e2e/` | Browser tests as an iPhone (WebKit) and a laptop (Chromium): `cd tests/e2e && npm install && npx playwright install webkit chromium && npm test` |
+| `tests/workflow.test.mjs` | Checks `.github/workflows/pages.yml` can still run. **Run it before pushing a workflow change** — a YAML mistake there makes GitHub refuse the whole file, no job starts, and the published app quietly stays on the old version. |
 | `tools/make_icons.py` | Rebuilds the app icons from `static/logo.png` |
 | `.github/workflows/pages.yml` | Runs the tests, then publishes `static/` to GitHub Pages on every push to `main` |
 
@@ -101,4 +102,11 @@ Membrane patches, crackle-test plates and sample photos attach straight from the
 5. `node tests/render.mjs <id>` prints the sheet so you can look at it without opening the app.
 
 ## Updating the app
-Edit, run the tests, commit and push to `main`. GitHub runs the tests and, if they pass, publishes the new version. Installed iPhones show **"A new version of the app is ready – Update now"**. Records are never touched by an update.
+Edit, run the tests, commit and push to `main`. If you touched `.github/workflows/pages.yml`, run
+`node --test tests/workflow.test.mjs` first: GitHub will not report a broken workflow file as a failed
+step, it simply refuses to run it, so nothing is tested and nothing is published.
+
+After a push, check the **Actions** tab. The app is only published when the `test` job passes; if it
+fails, the live site keeps serving the previous version. An installed iPhone then shows
+**"A new version of the app is ready – Update now"** — tap it, or close the app completely (swipe it
+away) and open it again. GitHub runs the tests and, if they pass, publishes the new version. Installed iPhones show **"A new version of the app is ready – Update now"**. Records are never touched by an update.
